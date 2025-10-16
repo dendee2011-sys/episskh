@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แดชบอร์ดข้อมูลระบาดวิทยา</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        /* ตั้งค่าฟอนต์หลักเป็น Inter (สำหรับภาษาอังกฤษ) และใช้ Sans-serif สำหรับภาษาไทย */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen p-4 sm:p-8">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4f46e5',
+                        'secondary': '#10b981',
+                        'warning': '#f59e0b',
+                        'danger': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <header class="mb-6">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-primary dark:text-indigo-400 border-b-4 border-primary/50 pb-2">
+            แดชบอร์ดติดตามสถานการณ์การระบาด (หลายโรค)
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+            ข้อมูลจาก Google Sheet (Line List Data) แบ่งตามหน้าต่างการวิเคราะห์
+        </p>
+        <!-- Loading Indicator -->
+        <p id="loadingMessage" class="text-warning font-semibold mt-2 hidden">
+            กำลังโหลดข้อมูลจาก Google Sheet... โปรดรอสักครู่
+        </p>
+    </header>
+
+    <!-- Filter Controls -->
+    <section id="filters" class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md mb-6 flex flex-col md:flex-row flex-wrap gap-4 md:gap-6 items-center">
+        
+        <!-- Disease Filter -->
+        <label for="diseaseFilter" class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">โรค:</label>
+        <select id="diseaseFilter" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-primary focus:border-primary w-full md:w-auto">
+            <!-- Options populated by JS -->
+        </select>
+        
+        <!-- Province Filter (NEW) -->
+        <label for="provinceFilter" class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">จังหวัด:</label>
+        <select id="provinceFilter" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-primary focus:border-primary w-full md:w-auto">
+            <!-- Options populated by JS -->
+        </select>
+        
+        <!-- District Filter (NEW) -->
+        <label for="districtFilter" class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">อำเภอ:</label>
+        <select id="districtFilter" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-primary focus:border-primary w-full md:w-auto">
+            <!-- Options populated by JS -->
+        </select>
+
+        <!-- Date Filters -->
+        <label for="startDate" class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">เริ่มต้น:</label>
+        <input type="date" id="startDate" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-primary focus:border-primary flex-grow md:flex-grow-0">
+        
+        <label for="endDate" class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">สิ้นสุด:</label>
+        <input type="date" id="endDate" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-primary focus:border-primary flex-grow md:flex-grow-0">
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex space-x-1 mb-6 border-b border-gray-300 dark:border-gray-700">
+        <button id="tab-overview" onclick="showPage('overview')" class="px-4 py-2 text-sm sm:text-base font-medium border-b-4 border-primary text-primary dark:text-indigo-400 dark:border-indigo-400 focus:outline-none transition duration-150 ease-in-out">
+            สรุปและแนวโน้ม (เวลา)
+        </button>
+        <button id="tab-profile" onclick="showPage('profile')" class="px-4 py-2 text-sm sm:text-base font-medium border-b-4 border-transparent text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-indigo-400 hover:border-primary/50 focus:outline-none transition duration-150 ease-in-out">
+            ข้อมูลประชากรผู้ป่วย (บุคคล)
+        </button>
+        <button id="tab-geographic" onclick="showPage('geographic')" class="px-4 py-2 text-sm sm:text-base font-medium border-b-4 border-transparent text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-indigo-400 hover:border-primary/50 focus:outline-none transition duration-150 ease-in-out">
+            การกระจายตัวทางภูมิศาสตร์ (สถานที่)
+        </button>
+    </nav>
+
+    <!-- Page Content Containers -->
+    <main id="dashboard-content">
+        
+        <!-- ============================================================================== -->
+        <!-- PAGE 1: OVERVIEW & TREND (สรุปและแนวโน้ม - เวลา) -->
+        <!-- ============================================================================== -->
+        <div id="page-overview" class="page-content">
+            
+            <!-- Key Metrics Cards -->
+            <section id="metrics" class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                <!-- Card 1: Total Cases -->
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg transition duration-300 border-b-4 border-primary">
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้ป่วยรวมทั้งหมด (ในช่วงที่เลือก)</p>
+                    <p id="totalCases" class="text-3xl sm:text-4xl font-bold mt-1 text-primary">0</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">ยอดสะสม</p>
+                </div>
+
+                <!-- Card 2: Active Cases -->
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg transition duration-300 border-b-4 border-warning">
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้ป่วยที่กำลังรักษา</p>
+                    <p id="activeCases" class="text-3xl sm:text-4xl font-bold mt-1 text-warning">0</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">จำนวนผู้ป่วยปัจจุบัน</p>
+                </div>
+
+                <!-- Card 3: Total Deaths -->
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg transition duration-300 border-b-4 border-danger">
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้เสียชีวิตรวม</p>
+                    <p id="totalDeaths" class="text-3xl sm:text-4xl font-bold mt-1 text-danger">0</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">ยอดรวมทั้งหมด</p>
+                </div>
+
+                <!-- Card 4: Recovery Rate -->
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg transition duration-300 border-b-4 border-secondary">
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">อัตราการฟื้นตัว</p>
+                    <p id="recoveryRate" class="text-3xl sm:text-4xl font-bold mt-1 text-secondary">0%</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">ผู้ฟื้นตัวต่อผู้ป่วยรวม</p>
+                </div>
+            </section>
+            
+            <!-- Chart 1: Daily Cases Trend (Time) -->
+            <section class="grid grid-cols-1 gap-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">แนวโน้มผู้ป่วยรายเดือน (ตามวันที่รายงาน)</h2>
+                    <div class="h-80 lg:h-96">
+                        <canvas id="casesTrendChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- PAGE 2: PATIENT PROFILE (ข้อมูลประชากรผู้ป่วย - บุคคล) -->
+        <!-- ============================================================================== -->
+        <div id="page-profile" class="page-content hidden">
+             <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                
+                <!-- Chart 2: Age Distribution -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">สัดส่วนผู้ป่วยตามกลุ่มอายุ</h2>
+                    <div class="h-80 lg:h-96 flex items-center justify-center">
+                        <canvas id="ageDistributionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart: Sex Distribution -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">สัดส่วนผู้ป่วยตามเพศ</h2>
+                    <div class="h-80 lg:h-96 flex items-center justify-center">
+                        <canvas id="sexDistributionChart"></canvas>
+                    </div>
+                </div>
+
+                 <!-- Chart 4: Patient Type (OPD/IPD) -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">ประเภทผู้ป่วย (OPD vs IPD)</h2>
+                    <div class="h-80 lg:h-96 flex items-center justify-center">
+                        <canvas id="patientTypeChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- PAGE 3: GEOGRAPHIC DISTRIBUTION (การกระจายตัวทางภูมิศาสตร์ - สถานที่) -->
+        <!-- ============================================================================== -->
+        <div id="page-geographic" class="page-content hidden">
+            <!-- UPDATED: Use grid for three charts -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                 
+                 <!-- Chart 1: Province Distribution -->
+                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">10 จังหวัดที่มีผู้ป่วยสูงสุด</h2>
+                    <div class="h-80 lg:h-96">
+                        <canvas id="provinceChart"></canvas>
+                    </div>
+                </div>
+
+                 <!-- NEW Chart: District Distribution -->
+                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">10 อำเภอที่มีผู้ป่วยสูงสุด</h2>
+                    <div class="h-80 lg:h-96">
+                        <canvas id="districtChart"></canvas>
+                    </div>
+                </div>
+
+                 <!-- Chart 3: SubDistrict Distribution -->
+                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">10 ตำบลที่มีผู้ป่วยสูงสุด</h2>
+                    <div class="h-80 lg:h-96">
+                        <canvas id="subDistrictChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </div>
+        
+    </main>
+
+    <!-- JavaScript for Data Handling and Chart Rendering -->
+    <script>
+        const chartInstances = {};
+        let epidemicData = {}; // Global variable for the full Case Line List data
+        
+        // --- DATA MAPPING AND FALLBACK ---
+        
+        // **** IMPORTANT: UPDATED SHEET ID BASED ON YOUR LINK ****
+        const SHEET_ID = '2PACX-1vSjlo-2YupNe7QhUZRHRQ50oGU5bPnoCpzzi9fOifqD6ST6QWmkx_lEgI6lm2ZQWhDt9aoD30MhR5f8'; 
+        
+        // This URL uses the Sheet ID and the /pub?output=csv format for guaranteed fetching of published data
+        const DAILY_DATA_URL = `https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`; 
+
+        // New Fallback CSV structure (Simulated Case Line List)
+        // ** NOTE: This data is only used if fetching the live Google Sheet fails. **
+        // FALLBACK_CSV_TEXT ถูกเปลี่ยนให้ใช้รหัสจังหวัด, อำเภอ, และตำบลแทนชื่อ
+        const FALLBACK_CSV_TEXT = `Date,Disease,ICD_Code,Sex,Age,Nationality,Province,District,SubDistrict,Onset_Date,PatientType,Is_Death,Is_Recovered
+01/01/24,ไข้หวัดใหญ่,J10,ชาย,45,ไทย,10,1004,100401,30/12/23,IPD,0,0
+01/01/24,ไข้เลือดออก,A91,หญิง,28,ไทย,50,5001,500108,28/12/23,OPD,0,1
+02/01/24,ไข้หวัดใหญ่,J10,ชาย,62,พม่า,20,2002,200201,01/01/24,IPD,1,0
+02/01/24,ไข้เลือดออก,A91,หญิง,33,ไทย,10,1018,101802,01/01/24,OPD,0,0
+03/01/24,ไข้หวัดใหญ่,J10,ชาย,15,ไทย,83,8301,830101,02/01/24,IPD,0,0
+03/01/24,ไข้หวัดใหญ่,J10,หญิง,55,ลาว,50,5005,500502,01/01/24,OPD,0,1
+04/01/24,ไข้เลือดออก,A91,ชาย,23,ไทย,20,05,07,03/01/24,OPD,0,0
+04/01/24,ไข้หวัดใหญ่,J10,หญิง,75,ไทย,30,3001,300101,01/01/24,IPD,1,0
+05/01/24,ไข้หวัดใหญ่,J10,ชาย,39,ไทย,90,9011,901103,04/01/24,OPD,0,0
+05/01/24,ไข้เลือดออก,A91,หญิง,5,ไทย,10,1039,01,03/01/24,IPD,0,0
+06/01/24,ไข้หวัดใหญ่,J10,ชาย,48,ไทย,50,5001,09,05/01/24,OPD,0,1
+06/01/24,ไข้เลือดออก,A91,หญิง,68,ไทย,20,2001,04,04/01/24,IPD,0,0
+07/01/24,ไข้หวัดใหญ่,J10,ชาย,29,ไทย,83,8302,02,06/01/24,OPD,0,1
+07/01/24,ไข้เลือดออก,A91,หญิง,35,ไทย,30,3012,07,05/01/24,IPD,0,0
+08/01/24,ไข้หวัดใหญ่,J10,ชาย,18,ไทย,10,1031,01,07/01/24,OPD,0,1
+08/01/24,ไข้เลือดออก,A91,หญิง,52,กัมพูชา,90,9005,01,06/01/24,IPD,0,0
+09/01/24,ไข้หวัดใหญ่,J10,ชาย,44,ไทย,40,4001,01,08/01/24,OPD,0,0
+09/01/24,ไข้เลือดออก,A91,หญิง,24,ไทย,10,1017,01,07/01/24,OPD,0,1
+10/01/24,ไข้หวัดใหญ่,J10,ชาย,67,ไทย,21,2101,03,09/01/24,IPD,0,0
+10/01/24,ไข้เลือดออก,A91,หญิง,32,ไทย,30,3005,03,08/01/24,OPD,0,1
+11/01/24,ไข้หวัดใหญ่,J10,ชาย,16,ไทย,14,1401,01,10/01/24,IPD,0,0
+11/01/24,ไข้เลือดออก,A91,หญิง,58,ไทย,12,1201,01,09/01/24,OPD,0,1
+12/01/24,ไข้หวัดใหญ่,J10,ชาย,43,ไทย,13,1303,03,10/01/24,IPD,0,0
+12/01/24,ไข้เลือดออก,A91,หญิง,25,ไทย,20,08,01,11/01/24,OPD,0,1
+13/01/24,ไข้หวัดใหญ่,J10,ชาย,69,ไทย,10,1036,01,12/01/24,IPD,0,0
+13/01/24,ไข้เลือดออก,A91,หญิง,36,ไทย,50,5006,02,11/01/24,OPD,0,1
+14/01/24,ไข้หวัดใหญ่,J10,ชาย,17,ไทย,83,8303,01,13/01/24,IPD,0,0
+14/01/24,ไข้เลือดออก,A91,หญิง,53,ไทย,30,3009,01,12/01/24,OPD,0,1
+15/01/24,ไข้หวัดใหญ่,J10,ชาย,22,ไทย,33,01,01,14/01/24,IPD,0,0
+15/01/24,ไข้เลือดออก,A91,หญิง,34,ไทย,33,02,02,14/01/24,OPD,0,1
+`;
+        
+        // **** ตารางจัดกลุ่ม ICD-10 ****
+        /**
+         * ตารางสำหรับจัดกลุ่มรหัส ICD-10 (3-4 หลัก) เป็นกลุ่มโรคหลัก
+         */
+        const ICD_CODE_GROUPING = {
+            // ===================================
+            // ICD-10 MAPPING (4-digit codes)
+            // ===================================
+            // กลุ่ม A00-A09: โรคติดเชื้อในลำไส้ (รวมโรคอุจจาระร่วง)
+            // 4 หลัก (เพื่อความเฉพาะเจาะจง)
+            "A020": "อาหารเป็นพิษ", // Salmonella enteritis
+            "A021": "อาหารเป็นพิษ",
+            "A022": "อาหารเป็นพิษ",
+            "A029": "อาหารเป็นพิษ",
+            "A050": "อาหารเป็นพิษ", // Staphylococcal food poisoning
+            "A05.0": "อาหารเป็นพิษ",
+            "A052": "อาหารเป็นพิษ",
+            "A053": "อาหารเป็นพิษ",
+            "A054": "อาหารเป็นพิษ",
+            "A058": "อาหารเป็นพิษ",
+            "A05.8": "อาหารเป็นพิษ",
+            "A059": "อาหารเป็นพิษ",
+            "A05.9": "อาหารเป็นพิษ",
+            "A329": "อาหารเป็นพิษ",
+            "A081": "โรคอุจจาระร่วงเฉียบพลัน", // Rotaviral enteritis
+            "A085": "โรคอุจจาระร่วงเฉียบพลัน", // Other viral enteritis
+            "A090": "โรคอุจจาระร่วงเฉียบพลัน", // Colitis & gastroenteritis
+            "A099": "โรคอุจจาระร่วงเฉียบพลัน", // Gastroenteritis of presumed infectious origin
+            "A040": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A044": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A047": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A048": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A049": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A08.1": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A08.5": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A080": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A081": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A082": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A083": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A084": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A085": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A09.0": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A09.9": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A090": "โรคอุจจาระร่วงเฉียบพลัน",
+            "A099": "โรคอุจจาระร่วงเฉียบพลัน",
+
+            "A241": "เมลิออยโดซิส",
+            "A242": "เมลิออยโดซิส",
+            "A243": "เมลิออยโดซิส",
+            "A244": "เมลิออยโดซิส",
+
+            "A010": "โรคบิดจากเชื้อชิเกลลา",
+            "A039": "โรคบิดจากเชื้อชิเกลลา",
+
+            "A061": "โรคติดเชื้ออะมีบา",
+            "A062": "โรคติดเชื้ออะมีบา",
+            "A063": "โรคติดเชื้ออะมีบา",
+            "A064": "โรคติดเชื้ออะมีบา",
+            "A065": "โรคติดเชื้ออะมีบา",
+            "A066": "โรคติดเชื้ออะมีบา",
+            "A067": "โรคติดเชื้ออะมีบา",
+            "A068": "โรคติดเชื้ออะมีบา",
+
+
+            "A270": "โรคเลปโตสไปโรซิส",
+            "A278": "โรคเลปโตสไปโรซิส",
+            "A279": "โรคเลปโตสไปโรซิส",
+
+            "A302": "โรคเรื้อน",
+
+            "A408": "การติดเชื้อสเตร็ปโดค็อกคัส",
+
+            "A500": "ซิฟิลิส",
+            "A502": "ซิฟิลิส",
+            "A509": "ซิฟิลิส",
+
+            "A010": "ไข้ไทฟอยด์",
+
+      
+
+            // โรคสำคัญอื่นๆ
+            "A91": "ไข้เลือดออก (Dengue)",
+            "A90": "ไข้เลือดออก (Dengue)",
+            "A910": "ไข้เลือดออก (Dengue)",
+            "A911": "ไข้เลือดออก (Dengue)",
+            "A970": "ไข้เลือดออก (Dengue)",
+            "A971": "ไข้เลือดออก (Dengue)",
+            "A972": "ไข้เลือดออก (Dengue)",
+            "A979": "ไข้เลือดออก (Dengue)",
+
+            "J10": "ไข้หวัดใหญ่ (Influenza)",
+
+            // อื่นๆ
+            "B18": "ไวรัสตับอักเสบบีเรื้อรัง", "I10": "ความดันโลหิตสูง (Primary)",
+            "E11": "เบาหวานชนิดที่ 2", "Z00": "การตรวจสุขภาพทั่วไป"
+        };
+        
+        /**
+         * ฟังก์ชันใหม่: แปลงรหัส ICD-10 เป็นกลุ่มโรคหลัก (ใช้ 4 หลักก่อน 3 หลัก)
+         */
+        function classifyICD(icdCode) {
+            if (!icdCode || typeof icdCode !== 'string') return 'ไม่ระบุ ICD';
+            
+            // 1. ตัดช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่
+            const cleanedCode = icdCode.trim().toUpperCase().replace('.', ''); // ลบจุดออกเพื่อรองรับ 4 หลักติดกัน
+
+            // 2. ลองค้นหาด้วยรหัส 4 หลัก
+            if (cleanedCode.length >= 4) {
+                const code4Digit = cleanedCode.substring(0, 4);
+                if (ICD_CODE_GROUPING[code4Digit]) {
+                    return ICD_CODE_GROUPING[code4Digit];
+                }
+            }
+
+            // 3. ลองค้นหาด้วยรหัส 3 หลัก
+            if (cleanedCode.length >= 3) {
+                const code3Digit = cleanedCode.substring(0, 3);
+                 if (ICD_CODE_GROUPING[code3Digit]) {
+                    return ICD_CODE_GROUPING[code3Digit];
+                }
+            }
+            
+            return `ICD: ${cleanedCode} (อื่นๆ)`;
+        }
+
+        /**
+         * ตารางการจับคู่รหัสจังหวัด (Province Code) เป็นชื่อจังหวัด (ครบ 77 จังหวัด)
+         * ... (PROVINCE_CODE_TO_NAME_MAP ยังคงเดิม) ...
+         */
+        const PROVINCE_CODE_TO_NAME_MAP = {
+            // ภาคกลางและตะวันออก
+            "10": "กรุงเทพมหานคร", "11": "สมุทรปราการ", "12": "นนทบุรี", "13": "ปทุมธานี",
+            "14": "พระนครศรีอยุธยา", "15": "อ่างทอง", "16": "ลพบุรี", "17": "สิงห์บุรี", 
+            "18": "ชัยนาท", "19": "สระบุรี", "20": "ชลบุรี", "21": "ระยอง", 
+            "22": "จันทบุรี", "23": "ตราด", "24": "ฉะเชิงเทรา", "25": "ปราจีนบุรี", 
+            "26": "นครนายก", "27": "สระแก้ว", "30": "นครราชสีมา", 
+            // ภาคตะวันออกเฉียงเหนือ
+            "31": "บุรีรัมย์", "32": "สุรินทร์", "33": "ศรีสะเกษ", "34": "อุบลราชธานี", 
+            "35": "ยโสธร", "36": "ชัยภูมิ", "37": "อำนาจเจริญ", "38": "บึงกาฬ", 
+            "39": "หนองบัวลำภู", "40": "ขอนแก่น", "41": "อุดรธานี", "42": "เลย", 
+            "43": "มหาสารคาม", "44": "ร้อยเอ็ด", "45": "กาฬสินธุ์", "46": "สกลนคร", 
+            "47": "นครพนม", "48": "มุกดาหาร", "49": "หนองคาย", 
+            // ภาคเหนือ
+            "50": "เชียงใหม่", "51": "ลำพูน", "52": "ลำปาง", "53": "อุตรดิตถ์", 
+            "54": "แพร่", "55": "น่าน", "56": "พะเยา", "57": "เชียงราย", 
+            "58": "แม่ฮ่องสอน", "60": "นครสวรรค์", "61": "อุทัยธานี", "62": "กำแพงเพชร", 
+            "63": "ตาก", "64": "สุโขทัย", "65": "พิษณุโลก", "66": "พิจิตร", 
+            "67": "เพชรบูรณ์", 
+            // ภาคตะวันตก
+            "70": "ราชบุรี", "71": "กาญจนบุรี", "72": "สุพรรณบุรี", "73": "นครปฐม", 
+            "74": "สมุทรสาคร", "75": "สมุทรสงคราม", "76": "เพชรบุรี", "77": "ประจวบคีรีขันธ์",
+            // ภาคใต้
+            "80": "นครศรีธรรมราช", "81": "กระบี่", "82": "พังงา", "83": "ภูเก็ต", 
+            "84": "สุราษฎร์ธานี", "85": "ระนอง", "86": "ชุมพร", "90": "สงขลา", 
+            "91": "สตูล", "92": "ตรัง", "93": "พัทลุง", "94": "ปัตตานี", 
+            "95": "ยะลา", "96": "นราธิวาส"
+        };
+
+        /**
+         * ตารางจำลองการแปลงรหัสอำเภอ (District Code) เป็นชื่ออำเภอ
+         * NOTE: ใช้รหัส 4 หลัก (จังหวัด 2 หลัก + อำเภอ 2 หลัก)
+         */
+        const DISTRICT_CODE_TO_NAME_MAP = {
+            // *** ภาคกลางและตะวันออก ***
+            "1001": "พระนคร", "1002": "ดุสิต", "1003": "หนองจอก", "1004": "บางรัก", "1005": "บางเขน", "1017": "ห้วยขวาง", "1018": "คลองสาน", 
+            "1031": "บางคอแหลม", "1036": "ดอนเมือง", "1039": "วัฒนา", 
+            "1101": "เมืองสมุทรปราการ", "1103": "บางพลี", "1201": "เมืองนนทบุรี", "1202": "บางกรวย", 
+            "1301": "เมืองปทุมธานี", "1303": "ธัญบุรี", "1401": "พระนครศรีอยุธยา", "1402": "ท่าเรือ",
+            "2001": "เมืองชลบุรี", "2002": "บ้านบึง", "2003": "หนองใหญ่", "2005": "พานทอง", "2008": "เกาะสีชัง", 
+            "2101": "เมืองระยอง", "2102": "บ้านฉาง", "3001": "เมืองนครราชสีมา", "3002": "ครบุรี", "3005": "บ้านเหลื่อม", 
+            "3009": "โนนไทย", "3012": "บัวใหญ่", "3013": "ประทาย",
+            
+            // *** ภาคตะวันออกเฉียงเหนือ ***
+            "3301": "เมืองศรีสะเกษ", "3302": "ยางชุมน้อย", "3303": "กันทรารมย์", "3304": "กันทรลักษ์", 
+            "3305": "ขุขันธ์", "3306": "ไพรบึง", "3307": "ปรางค์กู่", "3308": "ขุนหาญ", 
+            "3309": "ราษีไศล", "3310": "อุทุมพรพิสัย", "3311": "บึงบูรพ์", "3312": "ห้วยทับทัน", "3313": "โนนคูณ",
+            "3314": "ศรีรัตนะ", "3315": "น้ำเกลี้ยง", "3316": "วังหิน", "3317": "ภูสิงห์",
+            "3318": "เมืองจันทร์", "3319": "เบญจลักษ์", "3320": "พยุห์", "3321": "โพธิ์ศรีสุวรรณ",
+            "3322": "ศิลาลาด",
+            "3401": "เมืองอุบลราชธานี", "3402": "ศรีเมืองใหม่", "4001": "เมืองขอนแก่น", "4002": "บ้านไผ่",
+            "4101": "เมืองอุดรธานี", "4301": "เมืองมหาสารคาม", "4401": "เมืองร้อยเอ็ด", "4501": "เมืองกาฬสินธุ์",
+            
+            // *** ภาคเหนือ ***
+            "5001": "เมืองเชียงใหม่", "5002": "จอมทอง", "5005": "ดอยสะเก็ด", "5006": "แม่แตง", 
+            "5301": "เมืองอุตรดิตถ์", "5701": "เมืองเชียงราย", "6501": "เมืองพิษณุโลก", "6701": "เมืองเพชรบูรณ์",
+            
+            // *** ภาคใต้ ***
+            "8301": "เมืองภูเก็ต", "8302": "กะทู้", "8303": "ถลาง", 
+            "9001": "เมืองสงขลา", "9005": "เทพา", "9011": "หาดใหญ่",
+            
+            // อำเภอเมืองอื่นๆ ที่มีการซ้ำชื่อกับตำบล
+            "3601": "เมืองชัยภูมิ", "3603": "คอนสวรรค์", "3610": "ภูเขียว", 
+            // อำเภอที่ขาดหายไป 33xx
+            "3309": "ราษีไศล", "3310": "อุทุมพรพิสัย", 
+            // แก้ไขปัญหา: 3307 คือ ปรางค์กู่, 3309 คือ ราษีไศล
+            "3307": "ปรางค์กู่", 
+            
+            // เพิ่มอำเภอศรีสะเกษที่ขาดหายไปตามการแก้ไขก่อนหน้า
+            "3303": "กันทรารมย์", "3304": "กันทรลักษ์", "3305": "ขุขันธ์", 
+            "3310": "อุทุมพรพิสัย", "3316": "วังหิน", "3309": "ราษีไศล" 
+        };
+        
+        /**
+         * ตารางจำลองการแปลงรหัสตำบล (SubDistrict Code) เป็นชื่อตำบล
+         * NOTE: ใช้รหัส 6 หลัก (จังหวัด 2 หลัก + อำเภอ 2 หลัก + ตำบล 2 หลัก)
+         */
+        const SUBDISTRICT_CODE_TO_NAME_MAP = {
+            // *** ชุดรหัสตำบลใหม่ของ อำเภอเมืองศรีสะเกษ (3301) ตามข้อมูลผู้ใช้ ***
+          "330101": "เมืองเหนือ",
+            "330102": "เมืองใต้",
+            "330103": "คูซอด",
+            "330104": "ซำ",
+            "330105": "จาน",
+            "330106": "ตะดอบ",
+            "330107": "หนองครก",
+            "330111": "โพนข่า",
+            "330112": "โพนค้อ",
+            "330115": "โพนเขวา",
+            "330116": "หญ้าปล้อง",
+            "330118": "ทุ่ม",
+            "330119": "หนองไฮ",
+            "330121": "หนองแก้ว", 
+            "330122": "น้ำคำ", 
+            "330123": "โพธิ์", 
+            "330124": "หมากเขียบ", 
+            "330127": "หนองไผ่", 
+            
+            // รหัสตำบลอื่นๆ ที่ถูกเพิ่มไว้ก่อนหน้า
+            "100401": "สามเสนใน", "101701": "ห้วยขวาง", "101802": "หัวหมาก", "103101": "ดินแดง",
+            "103601": "สีกัน", "103901": "บางนาเหนือ", "120101": "ตลาดขวัญ", "130303": "ลำผักกูด",
+            "140101": "ประตูชัย", "200104": "บ้านสวน", "200201": "หนองปรือ", "200507": "นาจอมเทียน",
+            "200801": "ศรีราชา", "210103": "มาบตาพุด", "300101": "ในเมือง (โคราช)", "300503": "ใหม่",
+            "300901": "ในเมือง (พิมาย)", "301207": "กลางดง", 
+            "500108": "สุเทพ", "500109": "ช้างคลาน", "500502": "หนองหาร", "500602": "ริมใต้", 
+            "830101": "ตลาดใหญ่", "830202": "ป่าตอง", "830301": "เทพกระษัตรี", 
+            "900501": "ทำเนียบ", "901103": "ควนลัง",
+            
+            
+            // รหัสตำบลเพิ่มเติมจากไฟล์ PDF (ตัวอย่างชุดใหญ่)
+            "100101": "พระบรมมหาราชวัง", "100201": "ดุสิต", "100301": "กระทุ่มราย", "110101": "ปากน้ำ", "110102": "สำโรงเหนือ", "120101": "สวนใหญ่", "120201": "วัดชลอ", "130101": "บางปรอก", "130301": "ประชาธิปัตย์", "140101": "ประตูชัย", "150101": "ตลาดหลวง", "160101": "ทะเลชุบศร", "170101": "บางพุทรา", "180101": "ในเมือง (ชัยนาท)", "190101": "ปากเพรียว", "200101": "บางปลาสร้อย", "200201": "บ้านบึง", "200301": "หนองใหญ่", "210101": "ท่าประดู่", "220101": "ตลาด", "230101": "บางพระ", "240101": "หน้าเมือง", "250101": "หน้าเมือง", "260101": "นครนายก", "270101": "สระแก้ว", "300101": "ในเมือง (โคราช)", "310101": "ในเมือง (บุรีรัมย์)", "320101": "ในเมือง (สุรินทร์)", "340101": "ในเมือง (อุบลฯ)", "350101": "ในเมือง (ยโสธร)", "360101": "ในเมือง (ชัยภูมิ)", "370101": "บุ่ง (อ.เจริญ)", "400101": "ในเมือง (ขอนแก่น)", "410101": "หมากแข้ง", "420101": "กุดป่อง", "430101": "ในเมือง (หนองคาย)", "440101": "ตลาด (มค.)", "450101": "ในเมือง (ร้อยเอ็ด)", "460101": "กาฬสินธุ์", "470101": "ธาตุเชิงชุม", "480101": "ในเมือง (นพ.)", "490101": "มุกดาหาร", "500101": "ศรีภูมิ", "510101": "ในเมือง (ลำพูน)", "520101": "เวียงเหนือ", "530101": "ท่าอิฐ", "540101": "ในเวียง", "550101": "ในเวียง", "560101": "เวียง (พะเยา)", "570101": "เวียง (ชร.)", "580101": "จองคำ", "600101": "ปากน้ำโพ", "610101": "อุทัยใหม่", "620101": "ในเมือง (กพ.)", "630101": "ระแหง", "640101": "ธานี", "650101": "ในเมือง (พล.)", "660101": "ในเมือง (พิจิตร)", "670101": "ในเมือง (พช.)", "700101": "หน้าเมือง", "710101": "บ้านเหนือ", "720101": "ท่าพี่เลี้ยง", "730101": "พระปฐมเจดีย์", "740101": "มหาชัย", "750101": "แม่กลอง", "760101": "ท่าราบ", "770101": "ประจวบคีรีขันธ์", "800101": "ในเมือง (นศ.)", "810101": "ปากน้ำ", "820101": "ท้ายช้าง", "830101": "ตลาดใหญ", "840101": "ตลาด (สฎ.)", "850101": "เขานิเวศน์", "860101": "ท่าตะเภา", "900101": "บ่อยาง", "910101": "พิมาน", "920101": "ทับเที่ยง", "930101": "คูหาสวรรค์", "940101": "สะบารัง", "950101": "สะเตง", "960101": "บางนาค"
+        };
+        
+        /**
+         * แปลงข้อความ CSV เป็น Array of Objects
+         */
+        function parseCSV(csv) {
+            const lines = csv.split('\n').filter(line => line.trim() !== '');
+            if (lines.length === 0) return [];
+            
+            // NOTE: ใช้ Regular Expression เพื่อรองรับการมีเครื่องหมายจุลภาค (Comma) ในข้อมูล (ถ้ามี)
+            // แต่สำหรับ CSV จาก Google Sheet ที่เผยแพร่ มักจะจัดการส่วนนี้ได้ดีอยู่แล้ว
+            const headers = lines[0].split(',').map(header => header.trim());
+            const result = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(value => value.trim());
+                if (values.length !== headers.length) continue; 
+                
+                const obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    const key = headers[j].replace(/\s/g, '_'); 
+                    obj[key] = values[j];
+                }
+                result.push(obj);
+            }
+            return result;
+        }
+        
+        /**
+         * ฟังก์ชันแปลงวันที่ DD/MM/YY (หรือ DD/MM/YYYY) เป็นรูปแบบ YYYY-MM-DD
+         */
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            const parts = dateString.split(/[\/\-]/); // รองรับทั้ง / และ -
+            
+            if (parts.length === 3) {
+                let [day, month, year] = parts;
+                
+                // แปลงปี 2 หลักให้เป็น 4 หลัก (สมมติว่าเป็นช่วงปี 2000s)
+                if (year.length === 2) {
+                    year = (parseInt(year, 10) < 50 ? '20' : '19') + year;
+                }
+                
+                // ตรวจสอบความถูกต้องของเดือนและวัน (เติม 0 นำหน้าถ้าจำเป็น)
+                month = month.padStart(2, '0');
+                day = day.padStart(2, '0');
+
+                // คืนค่าในรูปแบบ ISO (YYYY-MM-DD)
+                return `${year}-${month}-${day}`;
+            }
+            // ถ้าไม่ใช่รูปแบบ DD/MM/YY ให้คืนค่าเดิม (เผื่อเป็นรูปแบบ ISO อยู่แล้ว)
+            return dateString;
+        }
+
+
+        /**
+         * ฟังก์ชันใหม่: จัดกลุ่มอายุ 10 ปี
+         */
+        function classifyAge(age) {
+            if (isNaN(age) || age < 0) return 'ไม่ระบุ';
+            
+            // ตรวจสอบกลุ่มอายุ 71 ปีขึ้นไป
+            if (age >= 71) return '71 ปีขึ้นไป';
+            
+            // ตรวจสอบกลุ่มอายุ 60 ปีขึ้นไป (ซึ่งรวม 60-70)
+            if (age >= 60) return '60 ปีขึ้นไป';
+            
+            // จัดกลุ่มตามช่วง 11-20, 21-30, ... 51-59
+            if (age >= 11) {
+                // Logic เพื่อให้ได้ 11, 21, 31, 41, 51
+                const lowerBound = Math.floor((age - 1) / 10) * 10 + 1; 
+                const upperBound = lowerBound + 9;
+                return `${lowerBound}-${upperBound} ปี`; // เช่น 21-30 ปี
+            }
+            
+            // จัดกลุ่ม 0-10
+            if (age >= 0 && age <= 10) return '0-10 ปี';
+            
+            return 'ไม่ระบุ';
+        }
+
+        /**
+         * เพิ่มรหัสทางภูมิศาสตร์ (Province/District Code) ให้กับข้อมูล Line List และแปลงรหัสเป็นชื่อที่อ่านได้
+         */
+        function standardizeGeoData(lineList) {
+            return lineList.map(item => {
+                
+                // Helper function for code lookup and display name assignment
+                const convertCodeToName = (rawCode, map, length) => {
+                    const code = rawCode ? rawCode.trim() : '';
+                    const defaultCode = '0'.repeat(length);
+                    
+                    if (code && !isNaN(code) && (code.length === length || code.length === 2 && length === 4)) { 
+                        const displayName = map[code];
+                        return { 
+                            code: code, 
+                            displayName: displayName || `Code: ${code}` 
+                        };
+                    }
+                    // ถ้าไม่เป็นรหัสตัวเลขตามที่กำหนด หรือไม่สมบูรณ์
+                    return { 
+                        code: defaultCode, 
+                        displayName: rawCode || 'ไม่ระบุ' 
+                    };
+                };
+
+                // 1. Province (จังหวัด) Logic (รหัส 2 หลัก) - ต้องรันก่อนเสมอ
+                const provinceData = convertCodeToName(item.province, PROVINCE_CODE_TO_NAME_MAP, 2);
+                item.provinceCode = provinceData.code;
+                item.provinceDisplay = provinceData.displayName; 
+
+                // 2. District (อำเภอ) Logic (รหัส 4 หลัก)
+                let rawDistrictCode = item.district ? item.district.trim() : '';
+                let finalDistrictCode = rawDistrictCode;
+
+                if (rawDistrictCode && !isNaN(rawDistrictCode)) {
+                    if (rawDistrictCode.length === 2 && item.provinceCode.length === 2) {
+                        // ถ้าเป็นรหัส 2 หลัก ให้เติมรหัสจังหวัดนำหน้า (แปลงเป็น 4 หลัก)
+                        finalDistrictCode = item.provinceCode + rawDistrictCode;
+                    } 
+                }
+
+                const districtData = convertCodeToName(finalDistrictCode, DISTRICT_CODE_TO_NAME_MAP, 4);
+                item.districtCode = districtData.code;
+                item.districtDisplay = districtData.displayName; 
+
+                // 3. SubDistrict (ตำบล) Logic (รหัส 6 หลัก)
+                let rawSubDistrictCode = item.subDistrict ? item.subDistrict.trim() : '';
+                let finalSubDistrictCode = rawSubDistrictCode;
+
+                if (rawSubDistrictCode && !isNaN(rawSubDistrictCode)) {
+                    // *** ตรวจสอบและเติมรหัสอำเภอ 4 หลัก ถ้าพบรหัสตำบลแค่ 2 หลัก ***
+                    if (rawSubDistrictCode.length === 2 && item.districtCode.length === 4) {
+                        finalSubDistrictCode = item.districtCode + rawSubDistrictCode;
+                    } else if (rawSubDistrictCode.length === 6) {
+                        // ถ้าเป็นรหัส 6 หลักเต็ม
+                        finalSubDistrictCode = rawSubDistrictCode;
+                    }
+                }
+                
+                const subDistrictData = convertCodeToName(finalSubDistrictCode, SUBDISTRICT_CODE_TO_NAME_MAP, 6);
+                item.subDistrictCode = subDistrictData.code;
+                item.subDistrictDisplay = subDistrictData.displayName; 
+                
+                return item;
+            });
+        }
+
+
+        /**
+         * ดึงข้อมูลระบาดวิทยาจากแหล่งข้อมูล (Google Sheet CSV URL)
+         */
+        async function fetchEpidemicData() {
+            let csvText = FALLBACK_CSV_TEXT;
+
+            document.getElementById('loadingMessage').classList.remove('hidden');
+            
+            if (SHEET_ID) {
+                 try {
+                    let response;
+                    for (let i = 0; i < 3; i++) { 
+                        try {
+                            response = await fetch(DAILY_DATA_URL);
+                            if (response.ok) break; 
+                        } catch (e) {
+                            // Suppress error logging during retry
+                        }
+                        if (i < 2) { 
+                            await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                        }
+                    }
+                    
+                    if (!response || !response.ok) {
+                        console.warn(`Fetch failed after retries. ใช้ข้อมูลจำลองแทน.`);
+                    } else {
+                        csvText = await response.text();
+                    }
+                } catch (error) {
+                    console.error("Error during fetch:", error);
+                    console.warn("เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย ใช้ข้อมูลจำลองแทน.");
+                }
+            }
+            
+            document.getElementById('loadingMessage').classList.add('hidden');
+
+            const caseLineList = parseCSV(csvText);
+            
+            let formattedData = caseLineList.map(row => {
+                // Try to parse Age column first
+                let age = parseInt(row.Age);
+                let ageGroup = row.AgeGroup || '';
+                
+                // If Age column exists and is a valid number, use it to classify age group
+                if (!isNaN(age)) {
+                    // *** IMPORTANT: Use classifyAge to ensure proper grouping ***
+                    ageGroup = classifyAge(age);
+                }
+                
+                // ** NEW: Increased robustness for ICD Code reading **
+                const rawIcdCode = row.ICD_Code || row.ICD_CODE || row.ICD10 || '';
+
+                // Classify ICD Code into a Group
+                const diseaseGroup = classifyICD(rawIcdCode);
+
+                return {
+                    // *** แก้ไข: ใช้ parseDate สำหรับคอลัมน์วันที่ทั้งหมด ***
+                    reportDate: parseDate(row.Date),
+                    disease: row.Disease || 'ไม่ระบุ', 
+                    icdCode: rawIcdCode, // Keep the raw code
+                    // NEW: Grouped disease name based on ICD Code
+                    diseaseGroup: diseaseGroup,
+                    sex: row.Sex || 'ไม่ระบุ',
+                    // Use the newly classified or existing age group
+                    ageGroup: ageGroup, 
+                    nationality: row.Nationality || 'ไม่ระบุ',
+                    // Pass raw codes/names to standardization function
+                    province: row.Province || 'ไม่ระบุ',
+                    district: row.District || 'ไม่ระระบุ',
+                    subDistrict: row.SubDistrict || 'ไม่ระบุ',
+                    onsetDate: parseDate(row.Onset_Date), // ใช้ parseDate สำหรับวันที่เริ่มมีอาการด้วย
+                    patientType: row.PatientType || 'ไม่ระบุ', 
+                    isDeath: parseInt(row.Is_Death) || 0,
+                    isRecovered: parseInt(row.Is_Recovered) || 0,
+                };
+            }).filter(item => item.reportDate); // กรองข้อมูลที่มีวันที่รายงานไม่ถูกต้องออก
+
+            if (formattedData.length === 0 && caseLineList.length > 0) {
+                 console.error("การแปลงข้อมูลล้มเหลว: ตรวจสอบว่าชื่อคอลัมน์ใน Google Sheet ตรงกับที่คาดหวังหรือไม่");
+            }
+            
+            // NEW STEP: Enrich and Standardize Data (Includes all Geo code conversion)
+            formattedData = standardizeGeoData(formattedData);
+
+            return formattedData;
+        }
+
+        // -------------------
+        // 3. Logic การกรองและการคำนวณจาก Line List
+        // -------------------
+        
+        function filterData(lineList, startDate, endDate, selectedDisease, selectedProvince, selectedDistrict) {
+            if (!lineList) return [];
+
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            const filteredList = lineList.filter(item => {
+                const itemDate = new Date(item.reportDate);
+                
+                // Set time to start/end of day to include full days
+                const startDay = new Date(start.setHours(0, 0, 0, 0));
+                const endDay = new Date(end.setHours(23, 59, 59, 999));
+
+                const isDateMatch = itemDate >= startDay && itemDate <= endDay;
+                
+                // Filter by Disease (Now using diseaseGroup)
+                const isDiseaseMatch = selectedDisease === 'ทั้งหมด' || item.diseaseGroup === selectedDisease;
+
+                // Filter by Province (using display name for consistency with UI)
+                const isProvinceMatch = selectedProvince === 'ทั้งหมด' || item.provinceDisplay === selectedProvince;
+
+                // Filter by District (using display name for consistency with UI)
+                const isDistrictMatch = selectedDistrict === 'ทั้งหมด' || item.districtDisplay === selectedDistrict;
+
+                return isDateMatch && isDiseaseMatch && isProvinceMatch && isDistrictMatch;
+            });
+            
+            return filteredList;
+        }
+
+        function populateProvinceFilters(data) {
+            const provinceFilter = document.getElementById('provinceFilter');
+            const allProvinces = [...new Set(data.map(item => item.provinceDisplay))].filter(d => d && d !== 'ไม่ระบุ').sort();
+            
+            provinceFilter.innerHTML = '<option value="ทั้งหมด">ทั้งหมด (All Provinces)</option>';
+            allProvinces.forEach(province => {
+                provinceFilter.innerHTML += `<option value="${province}">${province}</option>`;
+            });
+            
+            // Re-run district filter to populate based on default/current province selection
+            populateDistrictFilters(data); 
+        }
+
+        function populateDistrictFilters(data) {
+            const provinceFilter = document.getElementById('provinceFilter');
+            const districtFilter = document.getElementById('districtFilter');
+            const selectedProvince = provinceFilter.value;
+
+            let districts = [];
+            if (selectedProvince !== 'ทั้งหมด') {
+                // Find all districts associated with the selected province
+                const filteredByProvince = data.filter(item => item.provinceDisplay === selectedProvince);
+                districts = [...new Set(filteredByProvince.map(item => item.districtDisplay))].filter(d => d && d !== 'ไม่ระบุ').sort();
+            } else {
+                // If 'All Provinces' is selected, show 'All Districts' but don't list them all
+            }
+
+            districtFilter.innerHTML = '<option value="ทั้งหมด">ทั้งหมด (All Districts)</option>';
+            districts.forEach(district => {
+                districtFilter.innerHTML += `<option value="${district}">${district}</option>`;
+            });
+        }
+
+
+        function calculateMetrics(filteredLineList) {
+            const totalCases = filteredLineList.length;
+            const totalDeaths = filteredLineList.reduce((sum, item) => sum + item.isDeath, 0);
+            const totalRecovered = filteredLineList.reduce((sum, item) => sum + item.isRecovered, 0);
+
+            // Active Cases = Total Cases - Total Deaths - Total Recovered
+            const activeCases = totalCases - totalDeaths - totalRecovered; 
+
+            const recoveryRate = totalCases > 0
+                ? ((totalRecovered / totalCases) * 100).toFixed(2)
+                : '0.00';
+
+            return { totalCases, activeCases, totalDeaths, recoveryRate };
+        }
+        
+        function updateMetrics(metrics) {
+            document.getElementById('totalCases').textContent = metrics.totalCases.toLocaleString();
+            document.getElementById('activeCases').textContent = metrics.activeCases.toLocaleString();
+            document.getElementById('totalDeaths').textContent = metrics.totalDeaths.toLocaleString();
+            document.getElementById('recoveryRate').textContent = `${metrics.recoveryRate}%`;
+        }
+
+        // -------------------
+        // 4. การสร้างแผนภูมิและทำลาย Instance เดิม
+        // -------------------
+
+        function destroyChart(chartId) {
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].destroy();
+                delete chartInstances[chartId];
+            }
+        }
+        
+        function createProvinceChart(data) {
+            destroyChart('provinceChart');
+            
+            const provinceData = data.reduce((acc, curr) => {
+                // Grouping by Province Display Name (ชื่อจังหวัดที่ถูกแปลงแล้ว)
+                const key = curr.provinceDisplay || 'ไม่ระบุ'; 
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedProvinces = Object.entries(provinceData)
+                .filter(([name]) => name !== 'ไม่ระบุ') 
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10);
+
+            const labels = sortedProvinces.map(([name]) => name);
+            const cases = sortedProvinces.map(([, count]) => count);
+
+            const ctx = document.getElementById('provinceChart').getContext('2d');
+            
+            chartInstances['provinceChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ผู้ป่วยสะสม',
+                        data: cases,
+                        backgroundColor: '#10b981', // Secondary green color
+                        borderColor: '#059669',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Horizontal bar chart
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'จำนวนผู้ป่วยสะสม' },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(150, 150, 150, 0.1)' }
+                        },
+                        y: {
+                            title: { display: false },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Function to create District Chart
+         */
+        function createDistrictChart(data) {
+            destroyChart('districtChart');
+            
+            const districtData = data.reduce((acc, curr) => {
+                // Grouping by District Display Name (ชื่ออำเภอที่ถูกแปลงแล้ว)
+                const key = curr.districtDisplay || 'ไม่ระบุ'; 
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedDistricts = Object.entries(districtData)
+                .filter(([name]) => name !== 'ไม่ระบุ') 
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10);
+
+            const labels = sortedDistricts.map(([name]) => name);
+            const cases = sortedDistricts.map(([, count]) => count);
+
+            const ctx = document.getElementById('districtChart').getContext('2d');
+            
+            chartInstances['districtChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ผู้ป่วยสะสม',
+                        data: cases,
+                        backgroundColor: '#4f46e5', // Primary indigo color
+                        borderColor: '#3730a3',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Horizontal bar chart
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'จำนวนผู้ป่วยสะสม' },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(150, 150, 150, 0.1)' }
+                        },
+                        y: {
+                            title: { display: false },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+        
+        function createCasesTrendChart(data) {
+            destroyChart('casesTrendChart');
+            
+            const monthlyData = data.reduce((acc, curr) => {
+                // Group by Month (YYYY-MM)
+                const monthKey = curr.reportDate ? curr.reportDate.substring(0, 7) : 'Unknown';
+                if (!acc[monthKey]) {
+                    acc[monthKey] = { newCases: 0, recovered: 0, deaths: 0 };
+                }
+                acc[monthKey].newCases += 1; 
+                acc[monthKey].recovered += curr.isRecovered;
+                acc[monthKey].deaths += curr.isDeath;
+                return acc;
+            }, {});
+
+            const sortedMonths = Object.keys(monthlyData).sort();
+            
+            // Helper to convert YYYY-MM to readable Thai format
+            const formatMonth = (monthYear) => {
+                if (monthYear === 'Unknown') return 'ไม่ระบุ';
+                const [year, month] = monthYear.split('-');
+                const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                // Convert year to Buddhist Era (BE) - using a simple offset for illustration
+                const beYear = parseInt(year) + 543;
+                return `${monthNames[parseInt(month) - 1]} ${beYear}`;
+            };
+
+            const labels = sortedMonths.map(formatMonth);
+            const newCases = sortedMonths.map(month => monthlyData[month].newCases);
+            const recovered = sortedMonths.map(month => monthlyData[month].recovered);
+            
+            const ctx = document.getElementById('casesTrendChart').getContext('2d');
+            
+            chartInstances['casesTrendChart'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'ผู้ป่วยใหม่',
+                            data: newCases,
+                            borderColor: '#4f46e5', 
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                        },
+                        {
+                            label: 'ผู้ฟื้นตัว',
+                            data: recovered,
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'เดือนที่รายงาน' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            title: { display: true, text: 'จำนวนผู้ป่วยสะสมรายเดือน' },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(150, 150, 150, 0.1)' } 
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+
+        function createAgeDistributionChart(data) {
+            destroyChart('ageDistributionChart');
+            
+            const ageData = data.reduce((acc, curr) => {
+                const group = curr.ageGroup || 'ไม่ระบุ';
+                acc[group] = (acc[group] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Define custom sort order for age groups (must match classifyAge logic)
+            const ageOrder = [
+                '0-10 ปี', '11-20 ปี', '21-30 ปี', '31-40 ปี', 
+                '41-50 ปี', '51-59 ปี', '60 ปีขึ้นไป', '71 ปีขึ้นไป', 'ไม่ระบุ'
+            ];
+            
+            const sortedEntries = Object.entries(ageData)
+                .sort(([a], [b]) => {
+                    // Sorting logic to handle age ranges correctly
+                    const indexA = ageOrder.indexOf(a);
+                    const indexB = ageOrder.indexOf(b);
+                    if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Fallback for custom
+                    if (indexA === -1) return 1;
+                    if (indexB === -1) return -1;
+                    return indexA - indexB;
+                });
+
+            const labels = sortedEntries.map(([label]) => label);
+            const cases = sortedEntries.map(([, count]) => count);
+
+
+            const ctx = document.getElementById('ageDistributionChart').getContext('2d');
+
+            chartInstances['ageDistributionChart'] = new Chart(ctx, {
+                type: 'bar', // กราฟแท่ง
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'จำนวนผู้ป่วย',
+                        data: cases,
+                        backgroundColor: '#4f46e5', // ใช้สีเดียวเพื่อให้เหมาะกับกราฟแท่ง
+                        borderColor: '#3730a3',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'กลุ่มอายุ' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            title: { display: true, text: 'จำนวนผู้ป่วย' },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(150, 150, 150, 0.1)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }, // ซ่อน Legend สำหรับกราฟแท่งที่มีชุดข้อมูลเดียว
+                        tooltip: { 
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toLocaleString();
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createSexDistributionChart(data) {
+            destroyChart('sexDistributionChart');
+            
+            const sexData = data.reduce((acc, curr) => {
+                const sex = curr.sex || 'ไม่ระบุ';
+                acc[sex] = (acc[sex] || 0) + 1;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(sexData);
+            const cases = Object.values(sexData);
+
+            const ctx = document.getElementById('sexDistributionChart').getContext('2d');
+
+            chartInstances['sexDistributionChart'] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'จำนวนผู้ป่วย',
+                        data: cases,
+                        backgroundColor: [
+                            '#4f46e5', // ชาย (Primary)
+                            '#ef4444', // หญิง (Danger/Red)
+                            '#94a3b8' // ไม่ระบุ (Gray)
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: { 
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Function to create SubDistrict Chart
+         */
+        function createSubDistrictChart(data) {
+            destroyChart('subDistrictChart'); // Corrected ID
+            
+            const subDistrictData = data.reduce((acc, curr) => {
+                // Grouping by SubDistrict Display Name (ชื่อตำบลที่ถูกแปลงแล้ว)
+                const key = curr.subDistrictDisplay || 'ไม่ระบุ'; 
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedSubDistricts = Object.entries(subDistrictData)
+                .filter(([name]) => name !== 'ไม่ระบุ') // Filter out 'Not Specified' for Top 10 Geo
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10);
+
+            const labels = sortedSubDistricts.map(([name]) => name);
+            const cases = sortedSubDistricts.map(([, count]) => count);
+
+            const ctx = document.getElementById('subDistrictChart').getContext('2d');
+            
+            chartInstances['subDistrictChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ผู้ป่วยสะสม',
+                        data: cases,
+                        backgroundColor: '#f59e0b', 
+                        borderColor: '#d97706',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // แผนภูมิแท่งแนวนอน
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'จำนวนผู้ป่วยสะสม' },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(150, 150, 150, 0.1)' }
+                        },
+                        y: {
+                            title: { display: false },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+
+        function createPatientTypeChart(data) {
+            destroyChart('patientTypeChart');
+            
+            const typeData = data.reduce((acc, curr) => {
+                const type = curr.patientType || 'ไม่ระบุ';
+                acc[type] = (acc[type] || 0) + 1;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(typeData);
+            const cases = Object.values(typeData);
+
+            const ctx = document.getElementById('patientTypeChart').getContext('2d');
+
+            chartInstances['patientTypeChart'] = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'จำนวนผู้ป่วย',
+                        data: cases,
+                        backgroundColor: [
+                            '#4f46e5', 
+                            '#10b981', 
+                            '#94a3b8' 
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: { 
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed.toLocaleString();
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // -------------------
+        // 5. Logic การสลับหน้า (Tabs)
+        // -------------------
+
+        function showPage(pageId) {
+            // ซ่อนทุกหน้า
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+
+            // เอาสไตล์ Active ออกจากทุก Tab
+            document.querySelectorAll('nav button').forEach(tab => {
+                tab.classList.remove('border-primary', 'text-primary', 'dark:border-indigo-400', 'dark:text-indigo-400');
+                tab.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-400', 'hover:border-primary/50');
+            });
+
+            // แสดงหน้าที่เลือก
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+
+            // กำหนดสไตล์ Active ให้ Tab ที่ถูกเลือก
+            const activeTab = document.getElementById(`tab-${pageId}`);
+            if (activeTab) {
+                activeTab.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-400', 'hover:border-primary/50');
+                activeTab.classList.add('border-primary', 'text-primary', 'dark:border-indigo-400', 'dark:text-indigo-400');
+            }
+
+            // เนื่องจาก Chart.js บางครั้งมีปัญหาเรื่องขนาดเมื่อถูกสร้างในองค์ประกอบที่ถูกซ่อน
+            // เราจะทำการ render dashboard ใหม่อีกครั้งเพื่อปรับขนาด chart ให้ถูกต้อง
+            renderDashboard();
+        }
+
+        // -------------------
+        // 6. เริ่มต้นและอัปเดต Dashboard
+        // -------------------
+
+        let currentPage = 'overview'; // Keep track of the current page
+
+        function renderDashboard() {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const diseaseFilter = document.getElementById('diseaseFilter'); 
+            const provinceFilter = document.getElementById('provinceFilter'); 
+            const districtFilter = document.getElementById('districtFilter'); 
+            
+            const selectedDisease = diseaseFilter.value;
+            const selectedProvince = provinceFilter.value;
+            const selectedDistrict = districtFilter.value;
+
+            const filteredData = filterData(
+                epidemicData, 
+                startDateInput.value, 
+                endDateInput.value,
+                selectedDisease,
+                selectedProvince, 
+                selectedDistrict 
+            );
+            
+            // 1. คำนวณและอัปเดตตัวเลขสรุป (อัปเดตเสมอไม่ว่าจะอยู่หน้าไหน)
+            const metrics = calculateMetrics(filteredData);
+            updateMetrics(metrics);
+
+            // 2. สร้าง/อัปเดตแผนภูมิทั้งหมด (Chart.js จะปรับขนาดเมื่อถูกแสดงผล)
+            createCasesTrendChart(filteredData);
+            createAgeDistributionChart(filteredData);
+            createSexDistributionChart(filteredData);
+            createPatientTypeChart(filteredData);
+            
+            // Render Geo Charts
+            createProvinceChart(filteredData);
+            createDistrictChart(filteredData); 
+            createSubDistrictChart(filteredData); 
+            
+            // Set current page back to ensure correct tab remains active after full render
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            document.getElementById(`page-${currentPage}`).classList.remove('hidden');
+        }
+
+        window.onload = async function() {
+            // โหลดข้อมูล Case Line List
+            epidemicData = await fetchEpidemicData(); 
+
+            if (!epidemicData || epidemicData.length === 0) {
+                 console.error("ไม่สามารถโหลดหรือประมวลผลข้อมูล Line List ได้. แสดงข้อมูลจำลอง.");
+            }
+
+            const reportDates = epidemicData.map(item => item.reportDate).filter(date => date).sort();
+            
+            // กำหนดวันที่เริ่มต้นและสิ้นสุดเป็นวันที่ล่าสุดและเก่าสุดในข้อมูล
+            const latestDate = reportDates.length > 0 ? reportDates[reportDates.length - 1] : new Date().toISOString().split('T')[0];
+            const earliestDate = reportDates.length > 0 ? reportDates[0] : new Date().toISOString().split('T')[0];
+
+            // กำหนดค่าเริ่มต้นให้ Date Input
+            document.getElementById('startDate').value = earliestDate;
+            document.getElementById('endDate').value = latestDate;
+
+            // Populate filters
+            const diseaseFilter = document.getElementById('diseaseFilter');
+            // Populate filters using the new diseaseGroup field
+            const allDiseaseGroups = [...new Set(epidemicData.map(item => item.diseaseGroup))].filter(d => d && d !== 'ไม่ระบุ ICD').sort();
+            
+            diseaseFilter.innerHTML = '<option value="ทั้งหมด">ทั้งหมด (All Diseases)</option>';
+            allDiseaseGroups.forEach(group => {
+                diseaseFilter.innerHTML += `<option value="${group}">${group}</option>`;
+            });
+
+            // NEW: Populate Province Filter initially
+            populateProvinceFilters(epidemicData);
+            
+            // Add Event Listener for filter changes
+            const filterChangeHandler = () => renderDashboard(); 
+
+            document.getElementById('startDate').addEventListener('change', filterChangeHandler);
+            document.getElementById('endDate').addEventListener('change', filterChangeHandler);
+            diseaseFilter.addEventListener('change', filterChangeHandler);
+            
+            // NEW: Add event listeners for Geo filters
+            document.getElementById('provinceFilter').addEventListener('change', () => {
+                populateDistrictFilters(epidemicData); // Update districts based on selected province
+                renderDashboard(); // Rerender charts
+            });
+            document.getElementById('districtFilter').addEventListener('change', filterChangeHandler); 
+
+            // Reroute showPage function to also update currentPage variable
+            const originalShowPage = showPage;
+            window.showPage = (pageId) => {
+                currentPage = pageId;
+                originalShowPage(pageId);
+            };
+
+            // รัน Dashboard ครั้งแรก โดยแสดงหน้า Overview เป็นหน้าแรก
+            showPage('overview');
+        };
+    </script>
+</body>
+</html>
