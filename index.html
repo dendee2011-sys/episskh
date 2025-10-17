@@ -494,7 +494,7 @@
         const $ = (selector) => document.querySelector(selector);
 
         window.onload = async function() {
-            const tomSelectSettings = { create: false, sortField: { field: "text", direction: "asc" } };
+            const tomSelectSettings = { create: false };
             selectInstances.disease = new TomSelect('#diseaseFilter', tomSelectSettings);
             selectInstances.province = new TomSelect('#provinceFilter', tomSelectSettings);
             selectInstances.district = new TomSelect('#districtFilter', tomSelectSettings);
@@ -506,7 +506,22 @@
             $('#startDate').value = dates[0] || new Date().toISOString().split('T')[0];
             $('#endDate').value = dates.pop() || new Date().toISOString().split('T')[0];
 
-            const diseases = [...new Set(epidemicData.map(i => i.diseaseGroup))].filter(Boolean).sort();
+            // NEW LOGIC: Sort diseases by their numeric code
+            const diseaseMap = new Map();
+            epidemicData.forEach(item => {
+                // Only add valid diseases with a proper group name (not the "(อื่นๆ)" fallback)
+                if (item.diseaseCode && item.diseaseGroup && !item.diseaseGroup.includes('(อื่นๆ)')) {
+                    diseaseMap.set(item.diseaseGroup, item.diseaseCode);
+                }
+            });
+
+            // Convert the map to an array of [name, code] pairs and sort by the numeric code
+            const diseases = Array.from(diseaseMap.entries())
+                .sort(([, codeA], [, codeB]) => {
+                    return parseInt(codeA, 10) - parseInt(codeB, 10);
+                })
+                .map(([name]) => name); // Extract only the sorted names
+
             selectInstances.disease.clearOptions();
             selectInstances.disease.addOption({value: 'ทั้งหมด', text: 'ทั้งหมด (All Diseases)'});
             diseases.forEach(d => selectInstances.disease.addOption({value: d, text: d}));
