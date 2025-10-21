@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>แดชบอร์ดข้อมูลระบาดวิทยาและอุบัติเหตุ โรงพยาบาลศรีสะเกษ</title>
     <!-- Chosen Palette: Professional Blue and Neutral Tones -->
-    <!-- Application Structure Plan: A two-tab SPA cleanly separating "Epidemic" and "Road Traffic Injury" data. This structure simplifies the user journey, presenting two distinct, comprehensive dashboards. Shared filters for date and geography are centralized for consistent exploration. The Epidemic tab consolidates all relevant charts (metrics, trends, demographics, geo) into a single scrollable view for a holistic overview. The Injury tab mirrors this structure, presenting all its specific analyses in one place. This design was chosen to flatten the information architecture, removing nested navigation and making all key insights for each domain accessible on a single page, which is more intuitive. -->
+    <!-- Application Structure Plan: A multi-tab SPA cleanly separating "Epidemic", "Road Traffic Injury", and "Tuberculosis" data. This structure simplifies the user journey. Shared filters for date and geography are centralized for consistent exploration. Each tab consolidates all relevant charts into a single scrollable view for a holistic overview. -->
     <!-- Visualization & Content Choices: 
-        - Epidemic/Injury Metrics (Totals): Goal=Inform -> Presentation=Key Stat Cards -> Interaction=Updates on filter change -> Justification=Provides a quick, high-level summary.
-        - Trends (Epidemic & Injury): Goal=Change -> Viz=Line chart (Chart.js/Canvas) -> Interaction=Shows year-over-year (Epidemic) or monthly (Injury) data -> Justification=Clearly visualizes trends over time.
-        - Demographics (Sex, Patient Type, etc.): Goal=Compare Proportions -> Viz=Doughnut Chart (Chart.js/Canvas) -> Interaction=Hover for details -> Justification=Effective for showing part-to-whole relationships.
-        - Distributions (Age, Geo, Vehicle, etc.): Goal=Compare Distribution -> Viz=Vertical/Horizontal Bar Chart (Chart.js/Canvas) -> Interaction=Hover for counts, dynamic orientation based on filters -> Justification=Clearly shows distribution and allows for hierarchical drill-down.
+        - Metrics (Totals): Goal=Inform -> Presentation=Key Stat Cards -> Interaction=Updates on filter change -> Justification=Provides a quick, high-level summary.
+        - Trends: Goal=Change -> Viz=Line chart -> Justification=Clearly visualizes trends over time.
+        - Demographics: Goal=Compare Proportions -> Viz=Doughnut Chart -> Justification=Effective for showing part-to-whole relationships.
+        - Distributions (Age, Geo): Goal=Compare Distribution -> Viz=Bar Chart -> Justification=Clearly shows distribution and allows for hierarchical drill-down.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,6 +29,7 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen p-4 sm:p-8 transition-colors duration-300">
     <script>
+        // Manages dark mode based on user preference or system settings.
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -36,6 +37,7 @@
         }
     </script>
     <script>
+        // Extends Tailwind CSS with a custom color palette.
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -93,18 +95,20 @@
             <input type="date" id="startDate" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
             <label for="endDate" class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">สิ้นสุด:</label>
             <input type="date" id="endDate" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+            <button id="resetFilters" class="p-2 px-4 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors font-medium">ล้างค่า</button>
         </div>
     </section>
     <nav class="flex space-x-1 mb-6 border-b border-gray-300 dark:border-gray-700">
         <button id="tab-epidemic" class="px-4 py-2 font-medium border-b-4 focus:outline-none">โรคระบาด</button>
         <button id="tab-injury" class="px-4 py-2 font-medium border-b-4 focus:outline-none">การบาดเจ็บทางถนน</button>
+        <button id="tab-tuberculosis" class="px-4 py-2 font-medium border-b-4 focus:outline-none">วัณโรค</button>
     </nav>
     <main id="dashboard-content">
         <div id="page-epidemic" class="page-content">
             <section id="metrics" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-primary"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้ป่วยรวม (ในช่วงที่เลือก)</p><p id="totalCases" class="text-4xl font-bold mt-1 text-primary">0</p></div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-warning"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้ป่วยที่กำลังรักษา</p><p id="activeCases" class="text-4xl font-bold mt-1 text-warning">0</p></div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-danger"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้เสียชีวิตรวม</p><p id="totalDeaths" class="text-4xl font-bold mt-1 text-danger">0</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-primary transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้ป่วยรวม (ในช่วงที่เลือก)</p><p id="totalCases" class="text-4xl font-bold mt-1 text-primary">0</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-warning transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้ป่วยที่กำลังรักษา</p><p id="activeCases" class="text-4xl font-bold mt-1 text-warning">0</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-danger transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้เสียชีวิตรวม</p><p id="totalDeaths" class="text-4xl font-bold mt-1 text-danger">0</p></div>
             </section>
             <section class="grid grid-cols-1 gap-6 mb-6"><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">แนวโน้มผู้ป่วยรายเดือน (ตามวันเริ่มมีอาการ)</h2><div class="chart-container"><canvas id="casesTrendChart"></canvas></div></div></section>
             <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -120,18 +124,22 @@
         </div>
         <div id="page-injury" class="page-content hidden">
              <section class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-primary"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้บาดเจ็บรวม</p><p id="totalInjured" class="text-4xl font-bold mt-1 text-primary">0</p></div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-danger"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">เสียชีวิต</p><p id="totalInjuryDeaths" class="text-4xl font-bold mt-1 text-danger">0</p></div>
-                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-warning"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">พาหนะหลัก</p><p id="mainVehicle" class="text-3xl font-bold mt-1 text-warning">N/A</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-primary transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">ผู้บาดเจ็บรวม</p><p id="totalInjured" class="text-4xl font-bold mt-1 text-primary">0</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-danger transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">เสียชีวิต</p><p id="totalInjuryDeaths" class="text-4xl font-bold mt-1 text-danger">0</p></div>
+                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-warning transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">พาหนะหลัก</p><p id="mainVehicle" class="text-3xl font-bold mt-1 text-warning">N/A</p></div>
             </section>
             <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">สัดส่วนตามเพศ</h2><div class="h-80 flex items-center justify-center"><canvas id="injurySexChart"></canvas></div></div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">ประเภทผู้บาดเจ็บ</h2><div class="h-80 flex items-center justify-center"><canvas id="injuredPersonTypeChart"></canvas></div></div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">การนำส่ง รพ.</h2><div class="h-80 flex items-center justify-center"><canvas id="transportMethodChart"></canvas></div></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">สัดส่วนตามเพศ</h2><div class="chart-container"><canvas id="injurySexChart"></canvas></div></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">ประเภทผู้บาดเจ็บ</h2><div class="chart-container"><canvas id="injuredPersonTypeChart"></canvas></div></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">การนำส่ง รพ.</h2><div class="chart-container"><canvas id="transportMethodChart"></canvas></div></div>
             </section>
-             <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+             <section class="grid grid-cols-1 gap-6 mb-6">
                  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">กลุ่มอายุผู้บาดเจ็บ</h2><div class="chart-container"><canvas id="injuryAgeChart"></canvas></div></div>
+             </section>
+             <section class="grid grid-cols-1 gap-6 mb-6">
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">ประเภทพาหนะ</h2><div class="chart-container"><canvas id="vehicleTypeChart"></canvas></div></div>
+             </section>
+             <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">10 ถนนที่เกิดเหตุสูงสุด</h2><div class="chart-container"><canvas id="topStreetsChart"></canvas></div></div>
                  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">ช่วงเวลาเกิดเหตุ</h2><div class="chart-container"><canvas id="accidentTimeChart"></canvas></div></div>
             </section>
@@ -141,98 +149,392 @@
             </section>
              <section class="grid grid-cols-1 gap-6"><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4">แนวโน้มการบาดเจ็บรายเดือน</h2><div class="chart-container"><canvas id="injuryTrendChart"></canvas></div></div></section>
         </div>
+        <div id="page-tuberculosis" class="page-content hidden">
+             <section class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-primary transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">คัดกรอง (ในช่วงที่เลือก)</p><p id="totalScreened" class="text-4xl font-bold mt-1 text-primary">0</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-warning transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">X-Ray ผิดปกติ (ในช่วงที่เลือก)</p><p id="abnormalXray" class="text-4xl font-bold mt-1 text-warning">0</p></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border-b-4 border-danger transform hover:scale-105 transition-transform duration-300"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">พบเชื้อ (ในช่วงที่เลือก)</p><p id="confirmedTB" class="text-4xl font-bold mt-1 text-danger">0</p></div>
+            </section>
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">สัดส่วนตามเพศ</h2><div class="chart-container"><canvas id="tbSexChart"></canvas></div></div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">ผลการ X-Ray</h2><div class="chart-container"><canvas id="tbXrayResultChart"></canvas></div></div>
+            </section>
+            <section class="grid grid-cols-1 gap-6 mb-6">
+                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">สัดส่วนตามกลุ่มอายุ</h2><div class="chart-container"><canvas id="tbAgeChart"></canvas></div></div>
+            </section>
+            <section id="tb-geo-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                 <div id="tbProvinceChartContainer" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">10 จังหวัดที่คัดกรองสูงสุด</h2><div class="chart-container"><canvas id="tbProvinceChart"></canvas></div></div>
+                 <div id="tbDistrictChartContainer" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">10 อำเภอที่คัดกรองสูงสุด</h2><div class="chart-container"><canvas id="tbDistrictChart"></canvas></div></div>
+                 <div id="tbSubDistrictChartContainer" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg lg:col-span-2"><h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">10 ตำบลที่คัดกรองสูงสุด</h2><div class="chart-container"><canvas id="tbSubDistrictChart"></canvas></div></div>
+            </section>
+            <section class="grid grid-cols-1 gap-6 mb-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">แนวโน้มรายเดือน</h2>
+                    <div class="chart-container"><canvas id="tbTrendChart"></canvas></div>
+                </div>
+            </section>
+        </div>
     </main>
     <script>
         const chartInstances = {};
         const selectInstances = {};
         let epidemicData = [];
         let injuryData = [];
+        let tbData = [];
         let currentPage = 'epidemic';
         const $ = (selector) => document.querySelector(selector);
-        const DISEASE_CODE_MAP = {"01":"อหิวาตกโรค","02":"โรคอุจจาระร่วงเฉียบพลัน","03":"อาหารเป็นพิษ","05":"โรคบิดจากเชื้อชิเกลลา","06":"โรคบิดมีตัวหรือโรคบิดจากเชื้ออะมีบา","07":"ไข้เอนเทอริค","08":"ไข้ไทฟอยด์หรือไข้รากสาดน้อย","09":"ไข้พาราไทฟอยด์หรือไข้รากสาดเทียม","10":"โรคไวรัสตับอักเสบไม่ระบุชนิด","11":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด เอ","12":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด บี","13":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด ซี","14":"โรคตาแดง","15":"ไข้หวัดใหญ่","16":"ไข้หัดเยอรมัน","17":"โรคสุกใสหรือโรคอีสุกอีใส","18":"ไข้ไม่ทราบสาเหตุ","19":"ไข้กาฬหลังแอ่น","20":"โรคโปลิโอ","21":"ไข้หัดที่ไม่มีโรคแทรกซ้อน","22":"ไข้หัดที่มีโรคแทรกซ้อน","23":"โรคคอตีบ","24":"โรคไอกรน","25":"โรคบาดทะยัก","26":"ไข้เลือดออก","27":"ไข้เลือดออกช็อก","28":"ไข้สมองอักเสบ","29":"ไข้สมองอักเสบเจแปนนิส","30":"ไข้มาลาเรีย","31":"โรคปอดอักเสบหรือโรคปอดบวม","35":"โรคเรื้อน","37":"โรคซิฟิลิส, โรคซิฟิลิสแต่กำเนิด","38":"โรคหนองใน","39":"โรคหนองในเทียม","40":"โรคแผลริมอ่อน","41":"กามโรคของต่อมและท่อน้ำเหลือง","42":"โรคพิษสุนัขบ้า หรือ โรคกลัวน้ำ","43":"โรคเลปโตสไปโรสิส","44":"โรคสครับไทฟัส","45":"โรคแอนแทรกซ์","46":"โรคทริคิโนสิส","52":"โรคคางทูม","53":"โรคบาดทะยักในเด็กแรกเกิด","54":"เยื่อหุ้มสมองอักเสบที่มิได้ระบุเชื้อสาเหตุ","55":"เยื่อหุ้มสมองอักเสบจากพยาธิ","65":"อาการอัมพาตกล้ามเนื้ออ่อนปวกเปียกเฉียบพลัน","66":"ไข้เดงกี","68":"โรคลิชมาเนีย","69":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด ดี","70":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด อี","71":"โรคมือเท้าปาก","72":"โรคเมลิออยโดสิส","74":"ไข้ดำแดง","75":"โรคพยาธิใบไม้ตับ","76":"โรคเท้าช้าง","79":"โรคเริมของอวัยวะสืบพันธุ์และทวารหนัก","80":"โรคหูดอวัยวะเพศและทวารหนัก","82":"โรคติดเชื้อสเตร็พโตคอคคัสซูอิส","83":"โรคบรูเซลโลสิส","84":"ไข้ปวดข้อยุงลาย","85":"โรคโบทูลิซึม","87":"โรคติดเชื้อไวรัสซิกา","90":"ไข้เอนเทอโรไวรัส","91":"ไข้หวัดนก","92":"โรคติดเชื้อไวรัสโคโรนา 2019","93":"ไข้หัดเยอรมันแต่กำเนิด","94":"โรคฝีดาษวานร","95":"ลีเจียนแนร์","96":"โรคติดเชื้อไวรัสอาร์เอสวี"};
+        
+        // --- DATA CONSTANTS AND MAPPINGS ---
+        const DISEASE_CODE_MAP = {"01":"อหิวาตกโรค","02":"โรคอุจจาระร่วงเฉียบพลัน","03":"อาหารเป็นพิษ","05":"โรคบิดจากเชื้อชิเกลลา","06":"โรคบิดมีตัวหรือโรคบิดจากเชื้ออะมีบา","07":"ไข้เอนเทอริค","08":"ไข้ไทฟอยด์หรือไข้รากสาดน้อย","09":"ไข้พาราไทฟอยด์หรือไข้รากสาดเทียม","10":"โรคไวรัสตับอักเสบไม่ระบุชนิด","11":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด เอ","12":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด บี","13":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด ซี","14":"โรคตาแดง","15":"ไข้หวัดใหญ่","16":"ไข้หัดเยอรมัน","17":"โรคสุกใสหรือโรคอีสุกอีใส","18":"ไข้ไม่ทราบสาเหตุ","19":"ไข้กาฬหลังแอ่น","20":"โรคโปลิโอ","21":"ไข้หัดที่ไม่มีโรคแทรกซ้อน","22":"ไข้หัดที่มีโรคแทรกซ้อน","23":"โรคคอตีบ","24":"โรคไอกรน","25":"โรคบาดทะยัก","26":"ไข้เลือดออก","27":"ไข้เลือดออกช็อก","28":"ไข้สมองอักเสบ","29":"ไข้สมองอักเสบเจแปนนิส","30":"ไข้มาลาเรีย","31":"โรคปอดอักเสบหรือโรคปอดบวม","35":"โรคเรื้อน","37":"โรคซิฟิลิส, โรคซิฟิลิสแต่กำเนิด","38":"โรคหนองใน","39":"โรคหนองในเทียม","40":"โรคแผลริมอ่อน","41":"กามโรคของต่อมและท่อน้ำเหลือง","42":"โรคพิษสุนัขบ้า หรือ โรคกลัวน้ำ","43":"โรคเลปโตสไปโรสิส","44":"โรคสครับไทฟัส","45":"โรคแอนแทรกซ์","46":"โรคทริคิโนสิส","52":"โรคคางทูม","53":"โรคบาดทะยักในเด็กแรกเกิด","54":"เยื่อหุ้มสมองอักเสบที่มิได้ระบุเชื้อสาเหตุ","55":"เยื่อหุ้มสมองอักเสบจากพยาธิ","65":"อาการอัมพาตกล้ามเนื้ออ่อนปวกเปียกเฉียบพลัน","66":"ไข้เดงกี","68":"โรคลิชมาเนีย","69":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด ดี","70":"โรคไวรัสตับอักเสบเฉียบพลัน ชนิด อี","71":"โรคมือเท้าปาก","72":"โรคเมลิออยโดสิส","74":"ไข้ดำแดง","75":"โรคพยาธิใบไม้ตับ","76":"โรคเท้าช้าง","79":"โรคเริมของอวัยวະสืบพันธุ์และทวารหนัก","80":"โรคหูดอวัยวะเพศและทวารหนัก","82":"โรคติดเชื้อสเตร็พโตคอคคัสซูอิส","83":"โรคบรูเซลโลสิส","84":"ไข้ปวดข้อยุงลาย","85":"โรคโบทูลิซึม","87":"โรคติดเชื้อไวรัสซิกา","90":"ไข้เอนเทอโรไวรัส","91":"ไข้หวัดนก","92":"โรคติดเชื้อไวรัสโคโรนา 2019","93":"ไข้หัดเยอรมันแต่กำเนิด","94":"โรคฝีดาษวานร","95":"ลีเจียนแนร์","96":"โรคติดเชื้อไวรัสอาร์เอสวี"};
+        const PROVINCE_CODE_TO_NAME_MAP = {"10":"กรุงเทพมหานคร","11":"สมุทรปราการ","12":"นนทบุรี","13":"ปทุมธานี","14":"พระนครศรีอยุธยา","15":"อ่างทอง","16":"ลพบุรี","17":"สิงห์บุรี","18":"ชัยนาท","19":"สระบุรี","20":"ชลบุรี","21":"ระยอง","22":"จันทบุรี","23":"ตราด","24":"ฉะเชิงเทรา","25":"ปราจีนบุรี","26":"นครนายก","27":"สระแก้ว","30":"นครราชสีมา","31":"บุรีรัมย์","32":"สุรินทร์","33":"ศรีสะเกษ","34":"อุบลราชธานี","35":"ยโสธร","36":"ชัยภูมิ","37":"อำนาจเจริญ","38":"บึงกาฬ","39":"หนองบัวลำภู","40":"ขอนแก่น","41":"อุดรธานี","42":"เลย","43":"มหาสารคาม","44":"ร้อยเอ็ด","45":"กาฬสินธุ์","46":"สกลนคร","47":"นครพนม","48":"มุกดาหาร","49":"หนองคาย","50":"เชียงใหม่","51":"ลำพูน","52":"ลำปาง","53":"อุตรดิตถ์","54":"แพร่","55":"น่าน","56":"พะเยา","57":"เชียงราย","58":"แม่ฮ่องสอน","60":"นครสวรรค์","61":"อุทัยธานี","62":"กำแพงเพชร","63":"ตาก","64":"สุโขทัย","65":"พิษณุโลก","66":"พิจิตร","67":"เพชบูรณ์","70":"ราชบุรี","71":"กาญจนบุรี","72":"สุพรรณบุรี","73":"นครปฐม","74":"สมุทรสาคร","75":"สมุทรสงคราม","76":"เพชรบุรี","77":"ประจวบคีรีขันธ์","80":"นครศรีธรรมราช","81":"กระบี่","82":"พังงา","83":"ภูเก็ต","84":"สุราษฎร์ธานี","85":"ระนอง","86":"ชุมพร","90":"สงขลา","91":"สตูล","92":"ตรัง","93":"พัทลุง","94":"ปัตตานี","95":"ยะลา","96":"นราธิวาส"};
+        const DISTRICT_CODE_TO_NAME_MAP = {"1001":"พระนคร","1002":"ดุสิต","1003":"หนองจอก","1004":"บางรัก","1005":"บางเขน","1017":"ห้วยขวาง","1018":"คลองสาน","1031":"บางคอแหลม","1036":"ดอนเมือง","1039":"วัฒนา","1101":"เมืองสมุทรปราการ","1103":"บางพลี","1201":"เมืองนนทบุรี","1202":"บางกรวย","1301":"เมืองปทุมธานี","1303":"ธัญบุรี","1401":"พระนครศรีอยุธยา","1402":"ท่าเรือ","2001":"เมืองชลบุรี","2002":"บ้านบึง","2003":"หนองใหญ่","2005":"พานทอง","2008":"เกาะสีชัง","2101":"เมืองระยอง","2102":"บ้านฉาง","3001":"เมืองนครราชสีมา","3002":"ครบุรี","3005":"บ้านเหลื่อม","3009":"โนนไทย","3012":"บัวใหญ่","3013":"ประทาย","3301":"เมืองศรีสะเกษ","3302":"ยางชุมน้อย","3303":"กันทรารมย์","3304":"กันทรลักษ์","3305":"ขุขันธ์","3306":"ไพรบึง","3307":"ปรางค์กู่","3308":"ขุนหาญ","3309":"ราษีไศล","3310":"อุทุมพรพิสัย","3311":"บึงบูรพ์","3312":"ห้วยทับทัน","3313":"โนนคูณ","3314":"ศรีรัตนะ","3315":"น้ำเกลี้ยง","3316":"วังหิน","3317":"ภูสิงห์","3318":"เมืองจันทร์","3319":"เบญจลักษ์","3320":"พยุห์","3321":"โพธิ์ศรีสุวรรณ","3322":"ศิลาลาด","3401":"เมืองอุบลราชธานี","3402":"ศรีเมืองใหม่","4001":"เมืองขอนแก่น","4002":"บ้านไผ่","4101":"เมืองอุดรธานี","4301":"เมืองมหาสารคาม","4401":"เมืองร้อยเอ็ด","4501":"เมืองกาฬสินธุ์","5001":"เมืองเชียงใหม่","5002":"จอมทอง","5005":"ดอยสะเก็ด","5006":"แม่แตง","5301":"เมืองอุตรดิตถ์","5701":"เมืองเชียงราย","6501":"เมืองพิษณุโลก","6701":"เมืองเพชรบูรณ์","8301":"เมืองภูเก็ต","8302":"กะทู้","8303":"ถลาง","9001":"เมืองสงขลา","9005":"เทพา","9011":"หาดใหญ่","3601":"เมืองชัยภูมิ","3603":"คอนสวรรค์","3610":"ภูเขียว"};
+        const SUBDISTRICT_CODE_TO_NAME_MAP = {"330101":"เมืองเหนือ","330102":"เมืองใต้","330103":"คูซอด","330104":"ซำ","330105":"จาน","330106":"ตะดอบ","330107":"หนองครก","330111":"โพนข่า","330112":"โพนค้อ","330115":"โพนเขวา","330116":"หญ้าปล้อง","330118":"ทุ่ม","330119":"หนองไฮ","330121":"หนองแก้ว","330122":"น้ำคำ","330123":"โพธิ์","330124":"หมากเขียบ","330127":"หนองไผ่","330100":"ไม่ทราบที่อยู่","330108":"ไม่ทราบที่อยู่","330109":"ไม่ทราบที่อยู่","330110":"ไม่ทราบที่อยู่","330113":"ไม่ทราบที่อยู่","330114":"ไม่ทราบที่อยู่","330125":"ไม่ทราบที่อยู่","100401":"สามเสนใน","101701":"ห้วยขวาง","101802":"หัวหมาก","103101":"ดินแดง","103601":"สีกัน","103901":"บางนาเหนือ","120101":"ตลาดขวัญ","130303":"ลำผักกูด","140101":"ประตูชัย","200104":"บ้านสวน","200201":"หนองปรือ","200507":"นาจอมเทียน","200801":"ศรีราชา","210103":"มาบตาพุด","300101":"ในเมือง (โคราช)","300503":"ใหม่","300901":"ในเมือง (พิมาย)","301207":"กลางดง","500108":"สุเทพ","500109":"ช้างคลาน","500502":"หนองหาร","500602":"ริมใต้","830101":"ตลาดใหญ่","830202":"ป่าตอง","830301":"เทพกระษัตรี","900501":"ทำเนียบ","901103":"ควนลัง","100101":"พระบรมมหาราชวัง","100201":"ดุสิต","100301":"กระทุ่มราย","110101":"ปากน้ำ","110102":"สำโรงเหนือ","120201":"วัดชลอ","130101":"บางปรอก","130301":"ประชาธิปัตย์","150101":"ตลาดหลวง","160101":"ทะเลชุบศร","170101":"บางพุทรา","180101":"ในเมือง (ชัยนาท)","190101":"ปากเพรียว","200101":"บางปลาสร้อย","220101":"ตลาด","230101":"บางพระ","240101":"หน้าเมือง","250101":"หน้าเมือง","260101":"นครนายก","270101":"สระแก้ว","310101":"ในเมือง (บุรีรัมย์)","320101":"ในเมือง (สุรินทร์)","340101":"ในเมือง (อุบลฯ)","350101":"ในเมือง (ยโสธร)","360101":"ในเมือง (ชัยภูมิ)","370101":"บุ่ง (อ.เจริญ)","400101":"ในเมือง (ขอนแก่น)","410101":"หมากแข้ง","420101":"กุดป่อง","430101":"ในเมือง (หนองคาย)","440101":"ตลาด (มค.)","450101":"ในเมือง (ร้อยเอ็ด)","460101":"กาฬสินธุ์","470101":"ธาตุเชิงชุม","480101":"ในเมือง (นพ.)","490101":"มุกดาหาร","500101":"ศรีภูมิ","510101":"ในเมือง (ลำพูน)","520101":"เวียงเหนือ","530101":"ท่าอิฐ","540101":"ในเวียง","550101":"ในเวียง","560101":"เวียง (พะเยา)","570101":"เวียง (ชร.)","580101":"จองคำ","600101":"ปากน้ำโพ","610101":"อุทัยใหม่","620101":"ในเมือง (กพ.)","630101":"ระแหง","640101":"ธานี","650101":"ในเมือง (พล.)","660101":"ในเมือง (พิจิตร)","670101":"ในเมือง (พช.)","700101":"หน้าเมือง","710101":"บ้านเหนือ","720101":"ท่าพี่เลี้ยง","730101":"พระปฐมเจดีย์","740101":"มหาชัย","750101":"แม่กลอง","760101":"ท่าราบ","770101":"ประจวบคีรีขันธ์","800101":"ในเมือง (นศ.)","810101":"ปากน้ำ","820101":"ท้ายช้าง","830101":"ตลาดใหญ","840101":"ตลาด (สฎ.)","850101":"เขานิเวศน์","860101":"ท่าตะเภา","900101":"บ่อยาง","910101":"พิมาน","920101":"ทับเที่ยง","930101":"คูหาสวรรค์","940101":"สะบารัง","950101":"สะเตง","960101":"บางนาค"};
         const EPIDEMIC_SHEET_ID = '2PACX-1vSjlo-2YupNe7QhUZRHRQ50oGU5bPnoCpzzi9fOifqD6ST6QWmkx_lEgI6lm2ZQWhDt9aoD30MhR5f8';
         const EPIDEMIC_DATA_URL = `https://docs.google.com/spreadsheets/d/e/${EPIDEMIC_SHEET_ID}/pub?output=csv`; 
         const EPIDEMIC_FALLBACK_CSV = `Date,Disease,Sex,Age,Nationality,Province,District,SubDistrict,Onset_Date,PatientType,Is_Death,Is_Recovered\n01/01/24,15,ชาย,45,ไทย,10,1004,100401,30/12/23,IPD,0,0\n01/01/24,26,หญิง,28,ไทย,50,5001,500108,28/12/23,OPD,0,1`;
         const INJURY_SHEET_ID = '2PACX-1vQxqmzmvPG1iIdvwP02QZztd2xSBViSQNFN4JsKTpsm0QCmE0DbjpVnwh6V-RB2ue-BKVQ83XwJwrRp';
         const INJURY_DATA_URL = `https://docs.google.com/spreadsheets/d/e/${INJURY_SHEET_ID}/pub?output=csv`;
         const INJURY_FALLBACK_CSV = `Accident_Date,Accident_Time,Sex,Age,Nationality,Province,District,SubDistrict,Injured_Person_Type,Transport_Method,Vehicle_Type,Street,Is_Death\n01/01/2024,14:30,ชาย,25,ไทย,33,3301,330101,ผู้ขับขี่,มาจากที่เกิดเหตุ,รถจักรยานยนต์,ถนนกสิกรรม,0\n02/01/2024,10:00,หญิง,50,ไทย,33,3302,330201,ผู้โดยสาร,รพ.อื่นนำส่ง,รถยนต์,ถนนอุบล,DBA`;
-        const PROVINCE_CODE_TO_NAME_MAP = {"10":"กรุงเทพมหานคร","11":"สมุทรปราการ","12":"นนทบุรี","13":"ปทุมธานี","14":"พระนครศรีอยุธยา","15":"อ่างทอง","16":"ลพบุรี","17":"สิงห์บุรี","18":"ชัยนาท","19":"สระบุรี","20":"ชลบุรี","21":"ระยอง","22":"จันทบุรี","23":"ตราด","24":"ฉะเชิงเทรา","25":"ปราจีนบุรี","26":"นครนายก","27":"สระแก้ว","30":"นครราชสีมา","31":"บุรีรัมย์","32":"สุรินทร์","33":"ศรีสะเกษ","34":"อุบลราชธานี","35":"ยโสธร","36":"ชัยภูมิ","37":"อำนาจเจริญ","38":"บึงกาฬ","39":"หนองบัวลำภู","40":"ขอนแก่น","41":"อุดรธานี","42":"เลย","43":"มหาสารคาม","44":"ร้อยเอ็ด","45":"กาฬสินธุ์","46":"สกลนคร","47":"นครพนม","48":"มุกดาหาร","49":"หนองคาย","50":"เชียงใหม่","51":"ลำพูน","52":"ลำปาง","53":"อุตรดิตถ์","54":"แพร่","55":"น่าน","56":"พะเยา","57":"เชียงราย","58":"แม่ฮ่องสอน","60":"นครสวรรค์","61":"อุทัยธานี","62":"กำแพงเพชร","63":"ตาก","64":"สุโขทัย","65":"พิษณุโลก","66":"พิจิตร","67":"เพชรบูรณ์","70":"ราชบุรี","71":"กาญจนบุรี","72":"สุพรรณบุรี","73":"นครปฐม","74":"สมุทรสาคร","75":"สมุทรสงคราม","76":"เพชรบุรี","77":"ประจวบคีรีขันธ์","80":"นครศรีธรรมราช","81":"กระบี่","82":"พังงา","83":"ภูเก็ต","84":"สุราษฎร์ธานี","85":"ระนอง","86":"ชุมพร","90":"สงขลา","91":"สตูล","92":"ตรัง","93":"พัทลุง","94":"ปัตตานี","95":"ยะลา","96":"นราธิวาส"};
-        const DISTRICT_CODE_TO_NAME_MAP = {"1001":"พระนคร","1002":"ดุสิต","1003":"หนองจอก","1004":"บางรัก","1005":"บางเขน","1017":"ห้วยขวาง","1018":"คลองสาน","1031":"บางคอแหลม","1036":"ดอนเมือง","1039":"วัฒนา","1101":"เมืองสมุทรปราการ","1103":"บางพลี","1201":"เมืองนนทบุรี","1202":"บางกรวย","1301":"เมืองปทุมธานี","1303":"ธัญบุรี","1401":"พระนครศรีอยุธยา","1402":"ท่าเรือ","2001":"เมืองชลบุรี","2002":"บ้านบึง","2003":"หนองใหญ่","2005":"พานทอง","2008":"เกาะสีชัง","2101":"เมืองระยอง","2102":"บ้านฉาง","3001":"เมืองนครราชสีมา","3002":"ครบุรี","3005":"บ้านเหลื่อม","3009":"โนนไทย","3012":"บัวใหญ่","3013":"ประทาย","3301":"เมืองศรีสะเกษ","3302":"ยางชุมน้อย","3303":"กันทรารมย์","3304":"กันทรลักษ์","3305":"ขุขันธ์","3306":"ไพรบึง","3307":"ปรางค์กู่","3308":"ขุนหาญ","3309":"ราษีไศล","3310":"อุทุมพรพิสัย","3311":"บึงบูรพ์","3312":"ห้วยทับทัน","3313":"โนนคูณ","3314":"ศรีรัตนะ","3315":"น้ำเกลี้ยง","3316":"วังหิน","3317":"ภูสิงห์","3318":"เมืองจันทร์","3319":"เบญจลักษ์","3320":"พยุห์","3321":"โพธิ์ศรีสุวรรณ","3322":"ศิลาลาด","3401":"เมืองอุบลราชธานี","3402":"ศรีเมืองใหม่","4001":"เมืองขอนแก่น","4002":"บ้านไผ่","4101":"เมืองอุดรธานี","4301":"เมืองมหาสารคาม","4401":"เมืองร้อยเอ็ด","4501":"เมืองกาฬสินธุ์","5001":"เมืองเชียงใหม่","5002":"จอมทอง","5005":"ดอยสะเก็ด","5006":"แม่แตง","5301":"เมืองอุตรดิตถ์","5701":"เมืองเชียงราย","6501":"เมืองพิษณุโลก","6701":"เมืองเพชรบูรณ์","8301":"เมืองภูเก็ต","8302":"กะทู้","8303":"ถลาง","9001":"เมืองสงขลา","9005":"เทพา","9011":"หาดใหญ่","3601":"เมืองชัยภูมิ","3603":"คอนสวรรค์","3610":"ภูเขียว"};
-        const SUBDISTRICT_CODE_TO_NAME_MAP = {"330101":"เมืองเหนือ","330102":"เมืองใต้","330103":"คูซอด","330104":"ซำ","330105":"จาน","330106":"ตะดอบ","330107":"หนองครก","330111":"โพนข่า","330112":"โพนค้อ","330115":"โพนเขวา","330116":"หญ้าปล้อง","330118":"ทุ่ม","330119":"หนองไฮ","330121":"หนองแก้ว","330122":"น้ำคำ","330123":"โพธิ์","330124":"หมากเขียบ","330127":"หนองไผ่","330100":"ไม่ทราบที่อยู่","330108":"ไม่ทราบที่อยู่","330109":"ไม่ทราบที่อยู่","330110":"ไม่ทราบที่อยู่","330113":"ไม่ทราบที่อยู่","330114":"ไม่ทราบที่อยู่","330125":"ไม่ทราบที่อยู่","100401":"สามเสนใน","101701":"ห้วยขวาง","101802":"หัวหมาก","103101":"ดินแดง","103601":"สีกัน","103901":"บางนาเหนือ","120101":"ตลาดขวัญ","130303":"ลำผักกูด","140101":"ประตูชัย","200104":"บ้านสวน","200201":"หนองปรือ","200507":"นาจอมเทียน","200801":"ศรีราชา","210103":"มาบตาพุด","300101":"ในเมือง (โคราช)","300503":"ใหม่","300901":"ในเมือง (พิมาย)","301207":"กลางดง","500108":"สุเทพ","500109":"ช้างคลาน","500502":"หนองหาร","500602":"ริมใต้","830101":"ตลาดใหญ่","830202":"ป่าตอง","830301":"เทพกระษัตรี","900501":"ทำเนียบ","901103":"ควนลัง","100101":"พระบรมมหาราชวัง","100201":"ดุสิต","100301":"กระทุ่มราย","110101":"ปากน้ำ","110102":"สำโรงเหนือ","120201":"วัดชลอ","130101":"บางปรอก","130301":"ประชาธิปัตย์","150101":"ตลาดหลวง","160101":"ทะเลชุบศร","170101":"บางพุทรา","180101":"ในเมือง (ชัยนาท)","190101":"ปากเพรียว","200101":"บางปลาสร้อย","220101":"ตลาด","230101":"บางพระ","240101":"หน้าเมือง","250101":"หน้าเมือง","260101":"นครนายก","270101":"สระแก้ว","310101":"ในเมือง (บุรีรัมย์)","320101":"ในเมือง (สุรินทร์)","340101":"ในเมือง (อุบลฯ)","350101":"ในเมือง (ยโสธร)","360101":"ในเมือง (ชัยภูมิ)","370101":"บุ่ง (อ.เจริญ)","400101":"ในเมือง (ขอนแก่น)","410101":"หมากแข้ง","420101":"กุดป่อง","430101":"ในเมือง (หนองคาย)","440101":"ตลาด (มค.)","450101":"ในเมือง (ร้อยเอ็ด)","460101":"กาฬสินธุ์","470101":"ธาตุเชิงชุม","480101":"ในเมือง (นพ.)","490101":"มุกดาหาร","500101":"ศรีภูมิ","510101":"ในเมือง (ลำพูน)","520101":"เวียงเหนือ","530101":"ท่าอิฐ","540101":"ในเวียง","550101":"ในเวียง","560101":"เวียง (พะเยา)","570101":"เวียง (ชร.)","580101":"จองคำ","600101":"ปากน้ำโพ","610101":"อุทัยใหม่","620101":"ในเมือง (กพ.)","630101":"ระแหง","640101":"ธานี","650101":"ในเมือง (พล.)","660101":"ในเมือง (พิจิตร)","670101":"ในเมือง (พช.)","700101":"หน้าเมือง","710101":"บ้านเหนือ","720101":"ท่าพี่เลี้ยง","730101":"พระปฐมเจดีย์","740101":"มหาชัย","750101":"แม่กลอง","760101":"ท่าราบ","770101":"ประจวบคีรีขันธ์","800101":"ในเมือง (นศ.)","810101":"ปากน้ำ","820101":"ท้ายช้าง","830101":"ตลาดใหญ","840101":"ตลาด (สฎ.)","850101":"เขานิเวศน์","860101":"ท่าตะเภา","900101":"บ่อยาง","910101":"พิมาน","920101":"ทับเที่ยง","930101":"คูหาสวรรค์","940101":"สะบารัง","950101":"สะเตง","960101":"บางนาค"};
-        
-        const classifyDiseaseCode = (code) => DISEASE_CODE_MAP[(code||'').trim()] || `รหัส: ${code} (อื่นๆ)`;
-        const parseCSV = (csv) => { const lines = csv.split('\n').filter(l => l.trim()); if (lines.length < 2) return []; const headers = lines[0].split(',').map(h => h.trim().replace(/\s/g, '_')); return lines.slice(1).map(l => { const values = l.split(',').map(v => v.trim().replace(/"/g, '')); return headers.reduce((obj, h, i) => (obj[h] = values[i], obj), {}); }); };
-        const parseDate = (d) => { if (!d) return null; const p = d.split(/[\/\-\s]/); if (p.length >= 3) { let [day, m, y] = p; if (y.length === 2) y = (parseInt(y, 10) < 50 ? '20' : '19') + y; return `${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`; } return d; };
-        const classifyAge = (age) => { const n = parseInt(age); if (isNaN(n) || n < 0) return 'ไม่ระบุ'; if (n <= 10) return '0-10 ปี'; if (n <= 20) return '11-20 ปี'; if (n <= 30) return '21-30 ปี'; if (n <= 40) return '31-40 ปี'; if (n <= 50) return '41-50 ปี'; if (n <= 60) return '51-60 ปี'; if (n <= 70) return '61-70 ปี'; return '71 ปีขึ้นไป'; };
-        const standardizeGeoData = (list) => list.map(item => { const convert = (raw, map, len) => { const code = (raw || '').trim(); if (code && !isNaN(code)) { const dn = map[code.padStart(len, '0').slice(-len)]; return { code, dn: dn || `รหัส: ${code}` }; } return { code: '0'.repeat(len), dn: raw || 'ไม่ระบุ' }; }; let p = convert(item.Province, PROVINCE_CODE_TO_NAME_MAP, 2); item.provinceDisplay = p.dn; let dCode = (item.District || '').trim(); if (dCode.length === 2 && p.code !== '00') dCode = p.code + dCode; let d = convert(dCode, DISTRICT_CODE_TO_NAME_MAP, 4); item.districtDisplay = d.dn; let sdCode = (item.SubDistrict || '').trim(); if (sdCode.length === 2 && d.code !== '0000') sdCode = d.code + sdCode; let sd = convert(sdCode, SUBDISTRICT_CODE_TO_NAME_MAP, 6); item.subDistrictDisplay = sd.dn; return item; });
-        async function fetchAndProcessData(url, fallback, processor, sheetId) { let csv = fallback; if (sheetId) { $('#loadingMessage').classList.remove('hidden'); try { let res; for (let i = 0; i < 3; i++) { try { res = await fetch(url); if (res.ok) break; } catch (e) {} if (i < 2) await new Promise(r => setTimeout(r, 2**i * 1000)); } if (res && res.ok) csv = await res.text(); else console.warn(`Fetch failed for ${url}. Using fallback.`); } catch (err) { console.error("Network error:", err); } finally { $('#loadingMessage').classList.add('hidden'); } } try { return processor(parseCSV(csv)); } catch (err) { console.error("Data processing error:", err); return []; } }
-        const processEpidemicData = (data) => standardizeGeoData(data.map(r => ({ reportDate: parseDate(r.Date), diseaseCode: r.Disease, diseaseGroup: classifyDiseaseCode(r.Disease), sex: r.Sex||'ไม่ระบุ', ageGroup: classifyAge(r.Age), Province: r.Province, District: r.District, SubDistrict: r.SubDistrict, onsetDate: parseDate(r.Onset_Date), patientType: r.PatientType||'ไม่ระบุ', isDeath: parseInt(r.Is_Death)||0, isRecovered: parseInt(r.Is_Recovered)||0 })).filter(i => i.reportDate));
-        const processInjuryData = (data) => standardizeGeoData(data.map(r => { const deathVal = (r.Is_Death || '').trim(); return { accidentDate: parseDate(r.Accident_Date), accidentTime: r.Accident_Time || '00:00', sex: r.Sex||'ไม่ระบุ', ageGroup: classifyAge(r.Age), nationality: r.Nationality||'ไม่ระบุ', Province: r.Province, District: r.District, SubDistrict: r.SubDistrict, injuredPersonType: r.Injured_Person_Type||'ไม่ระบุ', transportMethod: r.Transport_Method||'ไม่ระบุ', vehicleType: r.Vehicle_Type||'ไม่ระบุ', street: r.Street||'ไม่ระบุ', isDeath: deathVal.toUpperCase() === 'DBA' || deathVal === '1' || deathVal === 'เสียชีวิต' ? 1 : 0 }; })).filter(i => i.accidentDate);
+        const TB_SHEET_ID = '2PACX-1vTMeQRy_OHoNJADjSLA7Y1ybLW4HdYNawz-Wk57z53ZfN3nZ99j4s1-9Pk65m12NS_2yD5TUx-7brdV';
+        const TB_DATA_URL = `https://docs.google.com/spreadsheets/d/e/${TB_SHEET_ID}/pub?output=csv`;
+        const TB_FALLBACK_CSV = `Screen_Date,Sex,Age,Province,District,SubDistrict,Is_Xray_Abnormal,TB_Confirmed_Date\n01/02/2024,ชาย,55,33,3301,330101,1,01/02/2024\n05/02/2024,หญิง,32,33,3305,330501,1,\n10/02/2024,ชาย,68,34,3401,340101,0,\n12/03/2024,หญิง,45,33,3301,330102,1,15/03/2024`;
 
-        function filterData(data, start, end, type, filters) { if (!data) return []; const s = new Date(start), e = new Date(end); return data.filter(i => { const d = new Date(type === 'epidemic' ? i.reportDate : i.accidentDate); const dateMatch = d >= s && d <= e; if (!dateMatch) return false; const provinceMatch = filters.province === 'ทั้งหมด' || i.provinceDisplay === filters.province; const districtMatch = filters.district === 'ทั้งหมด' || i.districtDisplay === filters.district; if (type === 'epidemic') { return (filters.disease === 'ทั้งหมด' || i.diseaseGroup === filters.disease) && provinceMatch && districtMatch; } return provinceMatch && districtMatch; }); }
-        const updateEpidemicMetrics = (data) => { const t = data.length, d = data.reduce((s, i) => s + i.isDeath, 0), r = data.reduce((s, i) => s + i.isRecovered, 0); $('#totalCases').textContent = t.toLocaleString(); $('#activeCases').textContent = (t - d - r).toLocaleString(); $('#totalDeaths').textContent = d.toLocaleString(); };
+        // --- DATA PROCESSING UTILITIES ---
+        const classifyDiseaseCode = (code) => DISEASE_CODE_MAP[(code||'').trim()] || `รหัส: ${code} (อื่นๆ)`;
+        const parseCSV = (csv) => {
+            const lines = csv.split('\n').filter(l => l.trim());
+            if (lines.length < 2) return [];
+            // Normalize headers: trim, replace spaces with underscores, and convert to lower case.
+            const headers = lines[0].split(',').map(h => h.trim().replace(/\s/g, '_').toLowerCase());
+            return lines.slice(1).map(l => {
+                const values = l.split(',').map(v => v.trim().replace(/"/g, ''));
+                return headers.reduce((obj, h, i) => (obj[h] = values[i], obj), {});
+            });
+        };
+        const parseDate = (d) => {
+            if (!d) return null;
+            // Handle YYYY-MM-DD format first
+            if (/^\d{4}-\d{2}-\d{2}/.test(d)) {
+                return d.split('T')[0]; // Return as is, ensuring no time part
+            }
+            // Handle DD/MM/YY(YY) format
+            const p = d.split(/[\/\-\s]/);
+            if (p.length >= 3) {
+                let [day, m, y] = p;
+                if (y.length === 2) {
+                    y = (parseInt(y, 10) < 50 ? '20' : '19') + y;
+                }
+                return `${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+            return d; // Fallback for unknown formats
+        };
+        const classifyAge = (age) => { const n = parseInt(age); if (isNaN(n) || n < 0) return 'ไม่ระบุ'; if (n <= 10) return '0-10 ปี'; if (n <= 20) return '11-20 ปี'; if (n <= 30) return '21-30 ปี'; if (n <= 40) return '31-40 ปี'; if (n <= 50) return '41-50 ปี'; if (n <= 60) return '51-60 ปี'; if (n <= 70) return '61-70 ปี'; return '71 ปีขึ้นไป'; };
+        const classifySex = (sexValue) => {
+            const s = (sexValue || '').trim();
+            if (s === '1' || s.toLowerCase() === 'male' || s === 'ชาย') return 'ชาย';
+            if (s === '2' || s.toLowerCase() === 'female' || s === 'หญิง') return 'หญิง';
+            return 'ไม่ระบุ';
+        };
+        const standardizeGeoData = (list) => list.map(item => {
+            const convert = (raw, map, len) => { const code = (raw || '').trim(); if (code && !isNaN(code)) { const dn = map[code.padStart(len, '0').slice(-len)]; return { code, dn: dn || `รหัส: ${code}` }; } return { code: '0'.repeat(len), dn: raw || 'ไม่ระบุ' }; };
+            let p = convert(item.province, PROVINCE_CODE_TO_NAME_MAP, 2);
+            item.provinceDisplay = p.dn;
+            let dCode = (item.district || '').trim();
+            if (dCode.length === 2 && p.code !== '00') dCode = p.code + dCode;
+            let d = convert(dCode, DISTRICT_CODE_TO_NAME_MAP, 4);
+            item.districtDisplay = d.dn;
+            let sdCode = (item.subdistrict || '').trim();
+            if (sdCode.length === 2 && d.code !== '0000') sdCode = d.code + sdCode;
+            let sd = convert(sdCode, SUBDISTRICT_CODE_TO_NAME_MAP, 6);
+            item.subDistrictDisplay = sd.dn;
+            return item;
+        });
+        async function fetchAndProcessData(url, fallback, processor, sheetId) { let csv = fallback; if (sheetId) { $('#loadingMessage').classList.remove('hidden'); try { let res; for (let i = 0; i < 3; i++) { try { res = await fetch(url); if (res.ok) break; } catch (e) {} if (i < 2) await new Promise(r => setTimeout(r, 2**i * 1000)); } if (res && res.ok) csv = await res.text(); else console.warn(`Fetch failed for ${url}. Using fallback.`); } catch (err) { console.error("Network error:", err); } finally { $('#loadingMessage').classList.add('hidden'); } } try { return processor(parseCSV(csv)); } catch (err) { console.error("Data processing error:", err); return []; } }
+        const processEpidemicData = (data) => standardizeGeoData(data.map(r => ({ reportDate: parseDate(r.date), diseaseCode: r.disease, diseaseGroup: classifyDiseaseCode(r.disease), sex: classifySex(r.sex), ageGroup: classifyAge(r.age), province: r.province, district: r.district, subdistrict: r.subdistrict, onsetDate: parseDate(r.onset_date), patientType: r.patienttype||'ไม่ระบุ', isDeath: parseInt(r.is_death)||0, isRecovered: parseInt(r.is_recovered)||0 })).filter(i => i.reportDate));
+        const processInjuryData = (data) => standardizeGeoData(data.map(r => { const deathVal = (r.is_death || '').trim(); return { accidentDate: parseDate(r.accident_date), accidentTime: r.accident_time || '00:00', sex: classifySex(r.sex), ageGroup: classifyAge(r.age), nationality: r.nationality||'ไม่ระบุ', province: r.province, district: r.district, subdistrict: r.subdistrict, injuredPersonType: r.injured_person_type||'ไม่ระบุ', transportMethod: r.transport_method||'ไม่ระบุ', vehicleType: r.vehicle_type||'ไม่ระบุ', street: r.street||'ไม่ระบุ', isDeath: deathVal.toUpperCase() === 'DBA' || deathVal === '1' || deathVal === 'เสียชีวิต' ? 1 : 0 }; })).filter(i => i.accidentDate);
+        const processTbData = (data) => standardizeGeoData(data.map(r => ({ screenDate: parseDate(r.screen_date), sex: classifySex(r.sex), ageGroup: classifyAge(r.age), province: r.province, district: r.district, subdistrict: r.subdistrict, isXrayAbnormal: (r.is_xray_abnormal && r.is_xray_abnormal.trim() !== '') ? 1 : 0, tbConfirmedDate: parseDate(r.tb_confirmed_date) })).filter(i => i.screenDate));
         
+        function filterData(data, start, end, type, filters) {
+            if (!data) return [];
+            return data.filter(i => {
+                let dateStr;
+                if (type === 'epidemic') {
+                    dateStr = i.reportDate;
+                } else if (type === 'injury') {
+                    dateStr = i.accidentDate;
+                } else if (type === 'tuberculosis') {
+                    dateStr = i.screenDate;
+                }
+
+                if (!dateStr) return false;
+                const dateMatch = dateStr >= start && dateStr <= end;
+                if (!dateMatch) return false;
+
+                const provinceMatch = filters.province === 'ทั้งหมด' || i.provinceDisplay === filters.province;
+                const districtMatch = filters.district === 'ทั้งหมด' || i.districtDisplay === filters.district;
+
+                if (type === 'epidemic') {
+                    return (filters.disease === 'ทั้งหมด' || i.diseaseGroup === filters.disease) && provinceMatch && districtMatch;
+                }
+                return provinceMatch && districtMatch;
+            });
+        }
+        
+        // --- CHARTING AND RENDERING ---
+        const getChartOptions = (isVertical = false, legendPos = 'bottom') => {
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const textColor = isDark ? '#d1d5db' : '#374151';
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: legendPos !== 'none',
+                        position: legendPos,
+                        labels: { color: textColor }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        titleColor: isDark ? '#f9fafb' : '#1f2937',
+                        bodyColor: isDark ? '#d1d5db' : '#374151',
+                        borderColor: gridColor,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { 
+                            color: textColor,
+                            precision: 0 // Ensures no decimal points on x-axis ticks
+                        },
+                        grid: { color: gridColor }
+                    },
+                    y: {
+                        beginAtZero: true, // Always start y-axis at 0
+                        ticks: { 
+                            color: textColor,
+                            precision: 0 // Ensures no decimal points on y-axis ticks
+                        },
+                        grid: { color: gridColor }
+                    }
+                }
+            };
+            if (isVertical === null) { // For doughnut charts which have no scales
+                delete options.scales;
+            } else {
+                options.indexAxis = isVertical ? 'x' : 'y';
+                if (!isVertical) { // This is a horizontal bar chart
+                    options.scales.y.grid.display = false; // Hide grid lines for category axis
+                    options.scales.x.beginAtZero = true; // Ensure value axis starts at 0
+                }
+            }
+            return options;
+        };
         function destroyAllCharts() { Object.keys(chartInstances).forEach(id => { if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; } }); }
         function createChart(id, config) { if (chartInstances[id]) chartInstances[id].destroy(); try { const ctx = $(`#${id}`).getContext('2d'); if(ctx) chartInstances[id] = new Chart(ctx, config); } catch(e) { console.error(`Failed to create chart ${id}:`, e); } }
-        const createBarChart = (id, data, label, color, isVertical=false) => createChart(id, { type: 'bar', data: { labels: data.map(d=>d[0]), datasets: [{ label, data: data.map(d=>d[1]), backgroundColor: color }] }, options: { indexAxis: isVertical ? 'x' : 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-        const createDoughnutChart = (id, data, colors) => createChart(id, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
-        function createEpidemicCharts(data) { const countBy = (p) => data.reduce((a, i) => (a[i[p]]=(a[i[p]]||0)+1, a),{}); const top10=(p)=>Object.entries(countBy(p)).filter(([n])=>n!=='ไม่ระบุ' && n!=='รหัส: 0000').sort(([,a],[,b])=>b-a).slice(0,10); const ageOrder=['0-10 ปี','11-20 ปี','21-30 ปี','31-40 ปี','41-50 ปี','51-60 ปี','61-70 ปี','71 ปีขึ้นไป','ไม่ระบุ']; createDoughnutChart('sexDistributionChart',countBy('sex'),['#4f46e5','#ef4444','#94a3b8']); createDoughnutChart('patientTypeChart',countBy('patientType'),['#10b981','#f59e0b']); createBarChart('ageDistributionChart',Object.entries(countBy('ageGroup')).sort(([a],[b])=>ageOrder.indexOf(a)-ageOrder.indexOf(b)),'ผู้ป่วย','#f59e0b',true); createBarChart('provinceChart',top10('provinceDisplay'),'ผู้ป่วย','#10b981'); const selProv=selectInstances.province.getValue(); $('#districtChartContainer h2').textContent=selProv!=='ทั้งหมด'?`10 อำเภอสูงสุด (จ.${selProv})`:'10 อำเภอที่มีผู้ป่วยสูงสุด'; createBarChart('districtChart',top10('districtDisplay'),'ผู้ป่วย','#4f46e5',selProv!=='ทั้งหมด'); const selDist=selectInstances.district.getValue(); let sortedSubs; if(selDist!=='ทั้งหมด'){ $('#subDistrictChartContainer h2').textContent=`จำนวนผู้ป่วยรายตำบล (อ.${selDist})`; sortedSubs=Object.entries(countBy('subDistrictDisplay')).filter(([n])=>n!=='ไม่ระบุ' && n!=='รหัส: 000000').sort(([a],[b])=>a.localeCompare(b,'th')); }else{ $('#subDistrictChartContainer h2').textContent=selProv!=='ทั้งหมด'?`10 ตำบลสูงสุด (จ.${selProv})`:'10 ตำบลที่มีผู้ป่วยสูงสุด'; sortedSubs=top10('subDistrictDisplay'); } createBarChart('subDistrictChart',sortedSubs,'ผู้ป่วย','#ef4444',true); const yearly=data.reduce((a,{onsetDate:d})=>{if(!d)return a;const dt=new Date(d),y=dt.getFullYear(),m=dt.getMonth();if(!a[y])a[y]=Array(12).fill(0);a[y][m]++;return a;},{}); const colors=['#4f46e5','#ef4444','#10b981','#f59e0b','#6b21a8','#db2777']; const datasets=Object.keys(yearly).sort().map((y,i)=>({label:`พ.ศ. ${parseInt(y)+543}`,data:yearly[y],borderColor:colors[i%colors.length],tension:0.4})); createChart('casesTrendChart',{type:'line',data:{labels:["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{mode:'index'}}}}); }
-        function createInjuryCharts(data) { const countBy = (p) => data.reduce((a,i)=>(a[i[p]]=(a[i[p]]||0)+1,a),{}); const top=(p,n=10)=>Object.entries(countBy(p)).filter(([k])=>k && k!=='ไม่ระบุ' && k!=='รหัส: 0000').sort(([,a],[,b])=>b-a).slice(0,n); $('#totalInjured').textContent=data.length.toLocaleString(); $('#totalInjuryDeaths').textContent=data.reduce((s,i)=>s+i.isDeath,0).toLocaleString(); const mainV=top('vehicleType',1); $('#mainVehicle').textContent=mainV.length>0?mainV[0][0]:'N/A'; createDoughnutChart('injurySexChart',countBy('sex'),['#4f46e5','#ef4444','#94a3b8']); createDoughnutChart('injuredPersonTypeChart',countBy('injuredPersonType'),['#4f46e5','#f59e0b','#10b981']); createDoughnutChart('transportMethodChart',countBy('transportMethod'),['#10b981','#f59e0b', '#ef4444']); const ageOrder=['0-10 ปี','11-20 ปี','21-30 ปี','31-40 ปี','41-50 ปี','51-60 ปี','61-70 ปี','71 ปีขึ้นไป','ไม่ระบุ']; createBarChart('injuryAgeChart',Object.entries(countBy('ageGroup')).sort(([a],[b])=>ageOrder.indexOf(a)-ageOrder.indexOf(b)),'ผู้บาดเจ็บ','#f59e0b',true); createBarChart('vehicleTypeChart',top('vehicleType'),'จำนวน','#4f46e5', true); createBarChart('topStreetsChart',top('street'),'จำนวน','#ef4444'); createBarChart('injuryDistrictChart', top('districtDisplay'), 'จำนวน', '#8b5cf6', true); createBarChart('injurySubDistrictChart', top('subDistrictDisplay'), 'จำนวน', '#db2777', true); const timeGroups=data.reduce((a,{accidentTime:t})=>{if(t){const h=parseInt(t.split(':')[0]);if(!isNaN(h)){const p=Math.floor(h/4)*4,l=`${String(p).padStart(2,'0')}:00-${String(p+3).padStart(2,'0')}:59`;a[l]=(a[l]||0)+1}}return a;},{}); createBarChart('accidentTimeChart',Object.entries(timeGroups).sort(([a],[b])=>a.localeCompare(b)),'จำนวน','#10b981',true); const monthly=data.reduce((a,{accidentDate:d})=>{if(d){const m=new Date(d).getMonth();a[m]++}return a},Array(12).fill(0)); createChart('injuryTrendChart',{type:'line',data:{labels:["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],datasets:[{label:'ผู้บาดเจ็บ',data:monthly,borderColor:'#4f46e5'}]},options:{responsive:true,maintainAspectRatio:false}}); }
+        const createBarChart = (id, data, label, color, isVertical=false) => createChart(id, { type: 'bar', data: { labels: data.map(d=>d[0]), datasets: [{ label, data: data.map(d=>d[1]), backgroundColor: color }] }, options: getChartOptions(isVertical, 'none') });
+        const createDoughnutChart = (id, data, colors) => createChart(id, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors }] }, options: getChartOptions(null, 'bottom') });
+        const updateEpidemicMetrics = (data) => { const t = data.length, d = data.reduce((s, i) => s + i.isDeath, 0), r = data.reduce((s, i) => s + i.isRecovered, 0); $('#totalCases').textContent = t.toLocaleString(); $('#activeCases').textContent = (t - d - r).toLocaleString(); $('#totalDeaths').textContent = d.toLocaleString(); };
+        function createEpidemicCharts(data) { const countBy = (p) => data.reduce((a, i) => (a[i[p]]=(a[i[p]]||0)+1, a),{}); const top10=(p)=>Object.entries(countBy(p)).filter(([n])=>n!=='ไม่ระบุ' && n!=='รหัส: 0000').sort(([,a],[,b])=>b-a).slice(0,10); const ageOrder=['0-10 ปี','11-20 ปี','21-30 ปี','31-40 ปี','41-50 ปี','51-60 ปี','61-70 ปี','71 ปีขึ้นไป','ไม่ระบุ']; createDoughnutChart('sexDistributionChart',countBy('sex'),['#4f46e5','#ef4444','#94a3b8']); createDoughnutChart('patientTypeChart',countBy('patientType'),['#10b981','#f59e0b']); createBarChart('ageDistributionChart',Object.entries(countBy('ageGroup')).sort(([a],[b])=>ageOrder.indexOf(a)-ageOrder.indexOf(b)),'ผู้ป่วย','#f59e0b',true); createBarChart('provinceChart',top10('provinceDisplay'),'ผู้ป่วย','#10b981'); const selProv=selectInstances.province.getValue(); $('#districtChartContainer h2').textContent=selProv!=='ทั้งหมด'?`10 อำเภอสูงสุด (จ.${selProv})`:'10 อำเภอที่มีผู้ป่วยสูงสุด'; createBarChart('districtChart',top10('districtDisplay'),'ผู้ป่วย','#4f46e5',selProv!=='ทั้งหมด'); const selDist=selectInstances.district.getValue(); let sortedSubs; if(selDist!=='ทั้งหมด'){ $('#subDistrictChartContainer h2').textContent=`จำนวนผู้ป่วยรายตำบล (อ.${selDist})`; sortedSubs=Object.entries(countBy('subDistrictDisplay')).filter(([n])=>n!=='ไม่ระบุ' && n!=='รหัส: 000000').sort(([a],[b])=>a.localeCompare(b,'th')); }else{ $('#subDistrictChartContainer h2').textContent=selProv!=='ทั้งหมด'?`10 ตำบลสูงสุด (จ.${selProv})`:'10 ตำบลที่มีผู้ป่วยสูงสุด'; sortedSubs=top10('subDistrictDisplay'); } createBarChart('subDistrictChart',sortedSubs,'ผู้ป่วย','#ef4444',true); const yearly=data.reduce((a,{onsetDate:d})=>{if(!d)return a;const dt=new Date(d),y=dt.getFullYear(),m=dt.getMonth();if(!a[y])a[y]=Array(12).fill(0);a[y][m]++;return a;},{}); const colors=['#4f46e5','#ef4444','#10b981','#f59e0b','#6b21a8','#db2777']; const datasets=Object.keys(yearly).sort().map((y,i)=>({label:`พ.ศ. ${parseInt(y)+543}`,data:yearly[y],borderColor:colors[i%colors.length],tension:0.4})); createChart('casesTrendChart',{type:'line',data:{labels:["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],datasets},options:getChartOptions(true, 'top')}); }
+        function createInjuryCharts(data) { const countBy = (p) => data.reduce((a,i)=>(a[i[p]]=(a[i[p]]||0)+1,a),{}); const top=(p,n=10)=>Object.entries(countBy(p)).filter(([k])=>k && k!=='ไม่ระบุ' && k!=='รหัส: 0000').sort(([,a],[,b])=>b-a).slice(0,n); $('#totalInjured').textContent=data.length.toLocaleString(); $('#totalInjuryDeaths').textContent=data.reduce((s,i)=>s+i.isDeath,0).toLocaleString(); const mainV=top('vehicleType',1); $('#mainVehicle').textContent=mainV.length>0?mainV[0][0]:'N/A'; createDoughnutChart('injurySexChart',countBy('sex'),['#4f46e5','#ef4444','#94a3b8']); createDoughnutChart('injuredPersonTypeChart',countBy('injuredPersonType'),['#4f46e5','#f59e0b','#10b981']); createDoughnutChart('transportMethodChart',countBy('transportMethod'),['#10b981','#f59e0b', '#ef4444']); const ageOrder=['0-10 ปี','11-20 ปี','21-30 ปี','31-40 ปี','41-50 ปี','51-60 ปี','61-70 ปี','71 ปีขึ้นไป','ไม่ระบุ']; createBarChart('injuryAgeChart',Object.entries(countBy('ageGroup')).sort(([a],[b])=>ageOrder.indexOf(a)-ageOrder.indexOf(b)),'ผู้บาดเจ็บ','#f59e0b',true); createBarChart('vehicleTypeChart',top('vehicleType'),'จำนวน','#4f46e5', true); createBarChart('topStreetsChart',top('street'),'จำนวน','#ef4444'); createBarChart('injuryDistrictChart', top('districtDisplay'), 'จำนวน', '#8b5cf6', true); createBarChart('injurySubDistrictChart', top('subDistrictDisplay'), 'จำนวน', '#db2777', true); const timeGroups=data.reduce((a,{accidentTime:t})=>{if(t){const h=parseInt(t.split(':')[0]);if(!isNaN(h)){const p=Math.floor(h/4)*4,l=`${String(p).padStart(2,'0')}:00-${String(p+3).padStart(2,'0')}:59`;a[l]=(a[l]||0)+1}}return a;},{}); createBarChart('accidentTimeChart',Object.entries(timeGroups).sort(([a],[b])=>a.localeCompare(b)),'จำนวน','#10b981',true); const monthly=data.reduce((a,{accidentDate:d})=>{if(d){const m=new Date(d).getMonth();a[m]++}return a},Array(12).fill(0)); createChart('injuryTrendChart',{type:'line',data:{labels:["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],datasets:[{label:'ผู้บาดเจ็บ',data:monthly,borderColor:'#4f46e5'}]},options:getChartOptions(true, 'none')}); }
+        const updateTbMetrics = (screenedData, startDate, endDate, filters) => {
+            // These two metrics are based on the SCREENING date range
+            $('#totalScreened').textContent = screenedData.length.toLocaleString();
+            $('#abnormalXray').textContent = screenedData.reduce((s, i) => s + i.isXrayAbnormal, 0).toLocaleString();
+            
+            // For confirmed cases, filter the *entire* TB dataset by geo...
+            const geoFilteredTbData = tbData.filter(i => {
+                const provinceMatch = filters.province === 'ทั้งหมด' || i.provinceDisplay === filters.province;
+                const districtMatch = filters.district === 'ทั้งหมด' || i.districtDisplay === filters.district;
+                return provinceMatch && districtMatch;
+            });
 
-        function showPage(pageId) {
-            currentPage = pageId;
-            const isInjuryPage = pageId === 'injury';
-            document.querySelectorAll('.page-content').forEach(p => p.classList.toggle('hidden', p.id !== `page-${pageId}`));
-            $('#disease-filter-container').classList.toggle('hidden', isInjuryPage);
-            document.querySelectorAll('nav button').forEach(t => t.className = 'px-4 py-2 font-medium border-b-4 border-transparent text-gray-600 dark:text-gray-400 hover:border-primary/50 focus:outline-none');
-            $(`#tab-${pageId}`).className = 'px-4 py-2 font-medium border-b-4 border-primary text-primary dark:border-indigo-400 focus:outline-none';
-            renderDashboard();
+            // ...and then by the selected date range using the confirmation date.
+            const confirmedCases = geoFilteredTbData.filter(i => {
+                return i.tbConfirmedDate && i.tbConfirmedDate >= startDate && i.tbConfirmedDate <= endDate;
+            }).length;
+
+            $('#confirmedTB').textContent = confirmedCases.toLocaleString();
+        };
+        function createTbCharts(screenedData, startDate, endDate, filters) { 
+            const countBy = (p) => screenedData.reduce((a, i) => (a[i[p]] = (a[i[p]] || 0) + 1, a), {}); 
+            const top10 = (p) => Object.entries(countBy(p)).filter(([n]) => n !== 'ไม่ระบุ' && n !== 'รหัส: 0000').sort(([, a], [, b]) => b - a).slice(0, 10); 
+            const ageOrder = ['0-10 ปี', '11-20 ปี', '21-30 ปี', '31-40 ปี', '41-50 ปี', '51-60 ปี', '61-70 ปี', '71 ปีขึ้นไป', 'ไม่ระบุ']; 
+            
+            createDoughnutChart('tbSexChart', countBy('sex'), ['#4f46e5', '#ef4444', '#94a3b8']); 
+            
+            // New X-Ray Result Chart Logic
+            const abnormalCount = screenedData.reduce((s, i) => s + i.isXrayAbnormal, 0);
+            const normalCount = screenedData.length - abnormalCount;
+            createDoughnutChart('tbXrayResultChart', {'ผิดปกติ': abnormalCount, 'ปกติ': normalCount}, ['#f59e0b', '#10b981']);
+
+            createBarChart('tbAgeChart', Object.entries(countBy('ageGroup')).sort(([a], [b]) => ageOrder.indexOf(a) - ageOrder.indexOf(b)), 'จำนวน', '#8b5cf6', true); 
+            createBarChart('tbProvinceChart', top10('provinceDisplay'), 'จำนวน', '#10b981'); 
+            createBarChart('tbDistrictChart', top10('districtDisplay'), 'จำนวน', '#4f46e5', true); 
+            createBarChart('tbSubDistrictChart', top10('subDistrictDisplay'), 'จำนวน', '#ef4444', true); 
+
+            // Monthly Trend Chart Logic
+            const monthlyScreened = Array(12).fill(0);
+            screenedData.forEach(({ screenDate }) => {
+                if (screenDate) {
+                    const month = new Date(screenDate).getMonth();
+                    monthlyScreened[month]++;
+                }
+            });
+
+            const monthlyConfirmed = Array(12).fill(0);
+            const geoFilteredTbData = tbData.filter(i => {
+                const provinceMatch = filters.province === 'ทั้งหมด' || i.provinceDisplay === filters.province;
+                const districtMatch = filters.district === 'ทั้งหมด' || i.districtDisplay === filters.district;
+                return provinceMatch && districtMatch;
+            });
+
+            geoFilteredTbData.forEach(({ tbConfirmedDate }) => {
+                if (tbConfirmedDate && tbConfirmedDate >= startDate && tbConfirmedDate <= endDate) {
+                    const month = new Date(tbConfirmedDate).getMonth();
+                    monthlyConfirmed[month]++;
+                }
+            });
+
+            createChart('tbTrendChart', {
+                type: 'line',
+                data: {
+                    labels: ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."],
+                    datasets: [
+                        {
+                            label: 'คัดกรอง',
+                            data: monthlyScreened,
+                            borderColor: '#4f46e5',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'พบเชื้อ',
+                            data: monthlyConfirmed,
+                            borderColor: '#ef4444',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: getChartOptions(true, 'top')
+            });
         }
 
+        // --- PAGE AND UI LOGIC ---
+        function updateGeoChartVisibility(page, filters) {
+            let pCont, dCont, sCont, parent;
+            if (page === 'epidemic') {
+                [pCont, dCont, sCont] = [$('#provinceChartContainer'), $('#districtChartContainer'), $('#subDistrictChartContainer')];
+            } else if (page === 'injury') {
+                [dCont, sCont] = [$('#injuryDistrictChartContainer'), $('#injurySubDistrictChartContainer')];
+                pCont = null; // Injury page has no province chart
+            } else if (page === 'tuberculosis') {
+                [pCont, dCont, sCont] = [$('#tbProvinceChartContainer'), $('#tbDistrictChartContainer'), $('#tbSubDistrictChartContainer')];
+            } else { return; }
+
+            if (!dCont || !sCont) return;
+            parent = (pCont || dCont).parentElement;
+
+            [pCont, dCont, sCont].forEach(c => c && c.classList.remove('hidden', 'lg:col-span-2'));
+            parent.classList.replace('lg:grid-cols-1', 'lg:grid-cols-2');
+
+            if (filters.district !== 'ทั้งหมด') {
+                if(pCont) pCont.classList.add('hidden');
+                dCont.classList.add('hidden');
+                if (sCont) sCont.classList.add('lg:col-span-2');
+                parent.classList.replace('lg:grid-cols-2', 'lg:grid-cols-1');
+            } else if (filters.province !== 'ทั้งหมด') {
+                if(pCont) pCont.classList.add('hidden');
+                if (sCont) sCont.classList.remove('lg:col-span-2');
+            } else {
+                if (sCont) sCont.classList.add('lg:col-span-2');
+            }
+        }
         function renderDashboard() {
             destroyAllCharts();
             const start = $('#startDate').value, end = $('#endDate').value;
             const filters = { province: selectInstances.province.getValue(), district: selectInstances.district.getValue() };
+            
             if (currentPage === 'injury') {
                 const filtered = filterData(injuryData, start, end, 'injury', filters);
                 createInjuryCharts(filtered);
-                const iDcont = $('#injuryDistrictChartContainer');
-                const iScont = $('#injurySubDistrictChartContainer');
-                if(iDcont && iScont){
-                    if(filters.district !== 'ทั้งหมด'){
-                       iDcont.classList.add('hidden');
-                       iScont.parentElement.classList.remove('lg:grid-cols-2');
-                       iScont.parentElement.classList.add('lg:grid-cols-1');
-                    } else {
-                       iDcont.classList.remove('hidden');
-                       iScont.parentElement.classList.remove('lg:grid-cols-1');
-                       iScont.parentElement.classList.add('lg:grid-cols-2');
-                    }
-                }
+            } else if (currentPage === 'tuberculosis') {
+                const filtered = filterData(tbData, start, end, 'tuberculosis', filters);
+                updateTbMetrics(filtered, start, end, filters);
+                createTbCharts(filtered, start, end, filters);
             } else {
                 filters.disease = selectInstances.disease.getValue();
                 const filtered = filterData(epidemicData, start, end, 'epidemic', filters);
                 updateEpidemicMetrics(filtered);
                 createEpidemicCharts(filtered);
-                const pCont = $('#provinceChartContainer'), dCont = $('#districtChartContainer'), sCont = $('#subDistrictChartContainer');
-                if (pCont && dCont && sCont) {
-                    if (filters.district !== 'ทั้งหมด') { [pCont,dCont].forEach(c=>c.classList.add('hidden')); sCont.classList.remove('hidden'); sCont.classList.add('lg:col-span-2'); } 
-                    else if (filters.province !== 'ทั้งหมด') { pCont.classList.add('hidden'); [dCont,sCont].forEach(c=>c.classList.remove('hidden')); sCont.classList.remove('lg:col-span-2'); } 
-                    else { [pCont,dCont,sCont].forEach(c=>c.classList.remove('hidden')); sCont.classList.add('lg:col-span-2'); }
-                }
             }
-            $('#lastUpdated').textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+
+            updateGeoChartVisibility(currentPage, filters);
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const yearBE = now.getFullYear() + 543;
+            const time = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+            $('#lastUpdated').textContent = `อัปเดตล่าสุด: ${day}/${month}/${yearBE} ${time}`;
+        }
+        function showPage(pageId) {
+            currentPage = pageId;
+            const isEpidemicPage = pageId === 'epidemic';
+            document.querySelectorAll('.page-content').forEach(p => p.classList.toggle('hidden', p.id !== `page-${pageId}`));
+            $('#disease-filter-container').classList.toggle('hidden', !isEpidemicPage);
+            
+            // Reset all tabs to inactive state
+            document.querySelectorAll('nav button').forEach(t => {
+                t.className = 'px-4 py-2 font-medium border-b-4 border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 focus:outline-none transition-colors';
+            });
+
+            // Define colors for each tab
+            const tabConfig = {
+                epidemic: { border: 'border-primary', text: 'text-primary', darkBorder: 'dark:border-indigo-400' },
+                injury: { border: 'border-danger', text: 'text-danger', darkBorder: 'dark:border-red-400' },
+                tuberculosis: { border: 'border-secondary', text: 'text-secondary', darkBorder: 'dark:border-emerald-400' }
+            };
+
+            const activeConfig = tabConfig[pageId];
+
+            // Set active tab with its specific color
+            if (activeConfig) {
+                const activeTab = $(`#tab-${pageId}`);
+                activeTab.className = `px-4 py-2 font-medium border-b-4 ${activeConfig.border} ${activeConfig.text} ${activeConfig.darkBorder} focus:outline-none transition-colors`;
+            }
+
+            renderDashboard();
+        }
+        function updateDistrictFilter() {
+            const prov = selectInstances.province.getValue();
+            const allGeoData = [...epidemicData, ...injuryData, ...tbData];
+            const dists = [...new Set(allGeoData
+                .filter(i => prov === 'ทั้งหมด' || i.provinceDisplay === prov)
+                .map(i => i.districtDisplay))]
+                .filter(d => d && d !== 'ไม่ระบุ' && !d.startsWith('รหัส:')).sort((a,b) => a.localeCompare(b, 'th'));
+            
+            selectInstances.district.clear();
+            selectInstances.district.addOption({value:'ทั้งหมด',text:'ทั้งหมด (All Districts)'});
+            dists.forEach(d=>selectInstances.district.addOption({value:d,text:d}));
+            selectInstances.district.setValue('ทั้งหมด', true);
         }
         
+        // --- INITIALIZATION ---
         window.onload = async function() {
             Object.assign(selectInstances, { disease: new TomSelect('#diseaseFilter', {create:false}), province: new TomSelect('#provinceFilter', {create:false}), district: new TomSelect('#districtFilter', {create:false}) });
 
-            [epidemicData, injuryData] = await Promise.all([
+            [epidemicData, injuryData, tbData] = await Promise.all([
                 fetchAndProcessData(EPIDEMIC_DATA_URL, EPIDEMIC_FALLBACK_CSV, processEpidemicData, EPIDEMIC_SHEET_ID),
-                fetchAndProcessData(INJURY_DATA_URL, INJURY_FALLBACK_CSV, processInjuryData, INJURY_SHEET_ID)
+                fetchAndProcessData(INJURY_DATA_URL, INJURY_FALLBACK_CSV, processInjuryData, INJURY_SHEET_ID),
+                fetchAndProcessData(TB_DATA_URL, TB_FALLBACK_CSV, processTbData, TB_SHEET_ID)
             ]);
             
-            const allDates = [...epidemicData.map(i => i.reportDate), ...injuryData.map(i => i.accidentDate)].filter(Boolean).sort((a, b) => new Date(a) - new Date(b));
+            const allDates = [
+                ...epidemicData.map(i => i.reportDate),
+                ...injuryData.map(i => i.accidentDate),
+                ...tbData.map(i => i.screenDate)
+            ].filter(Boolean).sort((a, b) => new Date(a) - new Date(b));
+
             if (allDates.length > 0) {
                 $('#startDate').value = allDates[0];
                 $('#endDate').value = allDates[allDates.length - 1];
@@ -245,55 +547,56 @@
             const diseaseMap = new Map();
             epidemicData.forEach(i => { if (i.diseaseCode && i.diseaseGroup && !i.diseaseGroup.includes('(อื่นๆ)')) diseaseMap.set(i.diseaseGroup, i.diseaseCode); });
             const diseases = Array.from(diseaseMap.entries()).sort(([,a],[,b]) => parseInt(a,10) - parseInt(b,10)).map(([name])=>name);
-            selectInstances.disease.clearOptions();
             selectInstances.disease.addOption({value: 'ทั้งหมด', text: 'ทั้งหมด (All Diseases)'});
             diseases.forEach(d => selectInstances.disease.addOption({value: d, text: d}));
             selectInstances.disease.setValue('ทั้งหมด');
 
-            const allGeoData = [...epidemicData, ...injuryData];
-            const provinces = [...new Set(allGeoData.map(i => i.provinceDisplay))].filter(p => p && p !== 'ไม่ระบุ' && !p.startsWith('รหัส:')).sort();
-            selectInstances.province.clearOptions();
+            const allGeoData = [...epidemicData, ...injuryData, ...tbData];
+            const provinces = [...new Set(allGeoData.map(i => i.provinceDisplay))].filter(p => p && p !== 'ไม่ระบุ' && !p.startsWith('รหัส:')).sort((a,b) => a.localeCompare(b, 'th'));
             selectInstances.province.addOption({value:'ทั้งหมด',text:'ทั้งหมด (All Provinces)'});
             provinces.forEach(p=>selectInstances.province.addOption({value:p,text:p}));
-            selectInstances.province.setValue('ทั้งหมด');
-            
-            const initialDistricts = [...new Set(allGeoData.map(i => i.districtDisplay))].filter(d => d && d !== 'ไม่ระบุ' && !d.startsWith('รหัส:')).sort();
-            selectInstances.district.clear();
-            selectInstances.district.addOption({value:'ทั้งหมด',text:'ทั้งหมด (All Districts)'});
-            initialDistricts.forEach(d=>selectInstances.district.addOption({value:d,text:d}));
-            selectInstances.district.setValue('ทั้งหมด');
+            selectInstances.province.setValue('ทั้งหมด', true);
+            updateDistrictFilter();
             
             const filterHandler = () => renderDashboard();
             ['startDate', 'endDate'].forEach(id => $(`#${id}`).addEventListener('change', filterHandler));
             ['disease', 'district'].forEach(key => selectInstances[key].on('change', filterHandler));
+            selectInstances.province.on('change', () => { updateDistrictFilter(); renderDashboard(); });
 
-            selectInstances.province.on('change', () => {
-                const prov = selectInstances.province.getValue();
-                const allGeoData = [...epidemicData, ...injuryData];
-                let dists = [];
-                if (prov !== 'ทั้งหมด') {
-                    dists = [...new Set(allGeoData.filter(i => i.provinceDisplay === prov).map(i => i.districtDisplay))].filter(d => d && d !== 'ไม่ระบุ' && !d.startsWith('รหัส:')).sort();
+            $('#resetFilters').addEventListener('click', () => {
+                if (allDates.length > 0) {
+                    $('#startDate').value = allDates[0];
+                    $('#endDate').value = allDates[allDates.length - 1];
                 } else {
-                    dists = [...new Set(allGeoData.map(i => i.districtDisplay))].filter(d => d && d !== 'ไม่ระบุ' && !d.startsWith('รหัส:')).sort();
+                    const today = new Date().toISOString().split('T')[0];
+                    $('#startDate').value = today;
+                    $('#endDate').value = today;
                 }
-                selectInstances.district.clear();
-                selectInstances.district.addOption({value:'ทั้งหมด',text:'ทั้งหมด (All Districts)'});
-                dists.forEach(d=>selectInstances.district.addOption({value:d,text:d}));
-                selectInstances.district.setValue('ทั้งหมด');
+                selectInstances.disease.setValue('ทั้งหมด', true);
+                selectInstances.province.setValue('ทั้งหมด', true);
+                updateDistrictFilter();
                 renderDashboard();
             });
 
             const themeToggle = $('#theme-toggle'), darkIcon = $('#theme-toggle-dark-icon'), lightIcon = $('#theme-toggle-light-icon');
             const updateIcons = () => { const isDark = document.documentElement.classList.contains('dark'); darkIcon.classList.toggle('hidden', !isDark); lightIcon.classList.toggle('hidden', isDark); };
-            themeToggle.addEventListener('click', () => { const isDark = document.documentElement.classList.contains('dark'); localStorage.setItem('theme', isDark ? 'light' : 'dark'); document.documentElement.classList.toggle('dark'); updateIcons(); renderDashboard(); });
+            themeToggle.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); updateIcons(); renderDashboard(); });
             updateIcons();
             
             $(`#tab-epidemic`).addEventListener('click', () => showPage('epidemic'));
             $(`#tab-injury`).addEventListener('click', () => showPage('injury'));
+            $(`#tab-tuberculosis`).addEventListener('click', () => showPage('tuberculosis'));
 
             showPage('epidemic');
         };
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
 
