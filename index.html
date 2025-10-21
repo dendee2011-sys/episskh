@@ -56,10 +56,10 @@
         <div class="flex justify-between items-start">
             <div>
                 <h1 class="text-3xl sm:text-4xl font-extrabold text-primary dark:text-indigo-400">
-                    แดชบอร์ดสถานการณ์ระบาดและการบาดเจ็บทางถนน โรงพยาบาลศรีสะเกษ
+                    แดชบอร์ดสถานการณ์ระบาดและอุบัติเหตุ
                 </h1>
                  <p class="text-gray-500 dark:text-gray-400 mt-1">
-                    By งานป้องกันควบคุมโรคและระบาดวิทยา
+                    โรงพยาบาลศรีสะเกษ
                 </p>
             </div>
             <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
@@ -101,7 +101,7 @@
     <nav class="flex space-x-1 mb-6 border-b border-gray-300 dark:border-gray-700">
         <button id="tab-epidemic" class="px-4 py-2 font-medium border-b-4 focus:outline-none">โรคระบาด</button>
         <button id="tab-injury" class="px-4 py-2 font-medium border-b-4 focus:outline-none">การบาดเจ็บทางถนน</button>
-        <button id="tab-tuberculosis" class="px-4 py-2 font-medium border-b-4 focus:outline-none">การคัดกรองวัณโรค</button>
+        <button id="tab-tuberculosis" class="px-4 py-2 font-medium border-b-4 focus:outline-none">วัณโรค</button>
     </nav>
     <main id="dashboard-content">
         <div id="page-epidemic" class="page-content">
@@ -250,7 +250,23 @@
             return item;
         });
         async function fetchAndProcessData(url, fallback, processor, sheetId) { let csv = fallback; if (sheetId) { $('#loadingMessage').classList.remove('hidden'); try { let res; for (let i = 0; i < 3; i++) { try { res = await fetch(url); if (res.ok) break; } catch (e) {} if (i < 2) await new Promise(r => setTimeout(r, 2**i * 1000)); } if (res && res.ok) csv = await res.text(); else console.warn(`Fetch failed for ${url}. Using fallback.`); } catch (err) { console.error("Network error:", err); } finally { $('#loadingMessage').classList.add('hidden'); } } try { return processor(parseCSV(csv)); } catch (err) { console.error("Data processing error:", err); return []; } }
-        const processEpidemicData = (data) => standardizeGeoData(data.map(r => ({ reportDate: parseDate(r.date), diseaseCode: r.disease, diseaseGroup: classifyDiseaseCode(r.disease), sex: classifySex(r.sex), ageGroup: classifyAge(r.age), province: r.province, district: r.district, subdistrict: r.subdistrict, onsetDate: parseDate(r.onset_date), patientType: r.patienttype||'ไม่ระบุ', isDeath: parseInt(r.is_death)||0, isRecovered: parseInt(r.is_recovered)||0 })).filter(i => i.reportDate));
+        const processEpidemicData = (data) => standardizeGeoData(data.map(r => { 
+            const deathVal = (r.is_death || '').trim();
+            return { 
+                reportDate: parseDate(r.date), 
+                diseaseCode: r.disease, 
+                diseaseGroup: classifyDiseaseCode(r.disease), 
+                sex: classifySex(r.sex), 
+                ageGroup: classifyAge(r.age), 
+                province: r.province, 
+                district: r.district, 
+                subdistrict: r.subdistrict, 
+                onsetDate: parseDate(r.onset_date), 
+                patientType: r.patienttype||'ไม่ระบุ', 
+                isDeath: deathVal === '1' || deathVal === 'เสียชีวิต' ? 1 : 0, 
+                isRecovered: parseInt(r.is_recovered)||0 
+            };
+        })).filter(i => i.reportDate);
         const processInjuryData = (data) => standardizeGeoData(data.map(r => { const deathVal = (r.is_death || '').trim(); return { accidentDate: parseDate(r.accident_date), accidentTime: r.accident_time || '00:00', sex: classifySex(r.sex), ageGroup: classifyAge(r.age), nationality: r.nationality||'ไม่ระบุ', province: r.province, district: r.district, subdistrict: r.subdistrict, injuredPersonType: r.injured_person_type||'ไม่ระบุ', transportMethod: r.transport_method||'ไม่ระบุ', vehicleType: r.vehicle_type||'ไม่ระบุ', street: r.street||'ไม่ระบุ', isDeath: deathVal.toUpperCase() === 'DBA' || deathVal === '1' || deathVal === 'เสียชีวิต' ? 1 : 0 }; })).filter(i => i.accidentDate);
         const processTbData = (data) => standardizeGeoData(data.map(r => ({ screenDate: parseDate(r.screen_date), sex: classifySex(r.sex), ageGroup: classifyAge(r.age), province: r.province, district: r.district, subdistrict: r.subdistrict, isXrayAbnormal: (r.is_xray_abnormal && r.is_xray_abnormal.trim() !== '') ? 1 : 0, tbConfirmedDate: parseDate(r.tb_confirmed_date) })).filter(i => i.screenDate));
         
@@ -592,13 +608,4 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
